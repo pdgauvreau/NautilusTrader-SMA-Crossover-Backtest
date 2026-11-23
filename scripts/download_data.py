@@ -121,20 +121,40 @@ def download_month(
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse command-line arguments."""
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--symbol", default="BTCUSDT", help="Spot symbol (default: BTCUSDT)")
+    p.add_argument(
+        "--symbol", "--symbols", dest="symbols", nargs="+", default=["BTCUSDT"],
+        help="One or more spot symbols (default: BTCUSDT)",
+    )
     p.add_argument("--interval", default="1d", help="Kline interval (default: 1d)")
-    p.add_argument("--year", type=int, default=2025, help="Calendar year (default: 2025)")
+    p.add_argument("--year", type=int, default=None, help="Single calendar year (default: 2025)")
+    p.add_argument("--start-year", type=int, default=None, help="First year of a range (inclusive)")
+    p.add_argument("--end-year", type=int, default=None, help="Last year of a range (inclusive)")
     p.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR, help="Output directory")
     p.add_argument("--force", action="store_true", help="Re-download files already present")
     args = p.parse_args(argv)
-    for field in ("symbol", "interval"):
-        if not _SAFE_TOKEN.match(getattr(args, field)):
-            p.error(f"--{field} must be alphanumeric")
+    for value in (*args.symbols, args.interval):
+        if not _SAFE_TOKEN.match(value):
+            p.error(f"symbol/interval must be alphanumeric, got {value!r}")
+    if args.year is not None and (args.start_year or args.end_year):
+        p.error("use either --year or --start-year/--end-year")
+    if args.year is None and args.start_year is None and args.end_year is None:
+        args.year = 2025
+    if args.year is not None:
+        args.start_year = args.end_year = args.year
+    args.start_year = args.start_year or args.end_year
+    args.end_year = args.end_year or args.start_year
+    if args.start_year > args.end_year:
+        p.error("--start-year must not be after --end-year")
     return args
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Entry point. Returns a process exit code."""
+    """Entry point. Returns a process exit code.
+
+    Months before a symbol's first available archive are reported as
+    "not listed yet" (e.g. SOLUSDT before its 2020 listing), not as errors.
+    Missing months after data has started are errors.
+    """
     args = parse_args(argv)
     out_dir: Path = args.out_dir
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -142,14 +162,26 @@ def main(argv: list[str] | None = None) -> int:
     missing: list[str] = []
     with requests.Session() as session:
         session.headers["User-Agent"] = "kline-archive-downloader/1.0"
-        for month in range(1, 13):
-            name = archive_name(args.symbol, args.interval, args.year, month)
-            status = download_month(
-                session, args.symbol, args.interval, args.year, month, out_dir, args.force
-            )
-            print(f"{name}: {status}")
-            if status == "missing":
-                missing.append(name)
+        for symbol in args.symbols:
+            seen_data = False
+            not_listed = 0
+            for year in range(args.start_year, args.end_year + 1):
+                for month in range(1, 13):
+                    name = archive_name(symbol, args.interval, year, month)
+                    status = download_month(
+                        session, symbol, args.interval, year, month, out_dir, args.force
+                    )
+                    if status == "missing" and not seen_data:
+                        not_listed += 1
+                        continue
+                    seen_data = True
+                    print(f"{name}: {status}")
+                    if status == "missing":
+                        missing.append(name)
+            if not_listed:
+                print(f"{symbol}: {not_listed} leading month(s) not listed yet, skipped")
+            if not seen_data:
+                missing.append(f"{symbol} (no data at all)")
 
     if missing:
         print(f"{len(missing)} archive(s) not available: {', '.join(missing)}", file=sys.stderr)
