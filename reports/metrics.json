@@ -1,0 +1,26 @@
+{
+  "period": "2025-01-01 to 2025-12-31",
+  "parameters": {
+    "fast": 10,
+    "slow": 50,
+    "trade_size_btc": 0.5,
+    "starting_capital_usdt": 100000.0,
+    "taker_fee": 0.001
+  },
+  "strategy": {
+    "total_return": 0.01037536484999979,
+    "num_trades": 4,
+    "win_rate": 0.5,
+    "max_drawdown": -0.1331643632388415,
+    "sharpe_ratio": 0.14881195663149382,
+    "final_equity": 101037.53648499999
+  },
+  "buy_and_hold": {
+    "total_return": -0.07525696805908111,
+    "num_trades": 1,
+    "win_rate": 0.0,
+    "max_drawdown": -0.3202251526449772,
+    "sharpe_ratio": 0.02236288075842743,
+    "final_equity": 92474.30319409189
+  }
+}
