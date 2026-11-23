@@ -51,6 +51,30 @@ and `equity_curve.png`.
 - **Warmup.** The 50-day SMA needs 50 bars, so the strategy can't act before
   mid-February. Buy & hold is measured over the full year.
 
+## Interactive dashboard
+
+A Streamlit app runs the same Nautilus backtest live. You can change the date
+range, SMA periods, trade size and starting capital, then compare the strategy
+with buy & hold on interactive charts.
+
+```powershell
+streamlit run app/streamlit_app.py      # opens http://localhost:8501
+```
+
+![Streamlit dashboard](docs/app_screenshot.jpg)
+
+The app has the following:
+
+- Metric cards for return, drawdown and Sharpe, each with the gap versus buy & hold.
+- Linked equity, price/SMA and drawdown charts with buy and sell markers.
+- The trades table with a CSV download.
+- A warning when the trade size can cost more than the account holds. Nautilus's
+  risk engine denies those entries.
+
+The app and `scripts/run_backtest.py` share `src/pipeline.py`, so both always
+report the same numbers. The app reads only local archive data and never
+connects to an exchange.
+
 ## How it works
 
 ```
@@ -59,7 +83,9 @@ src/data_loader.py         →  pandas OHLCV → validated → Nautilus Bar obje
 src/strategies/sma_crossover.py  SmaCrossover(Strategy) + SmaCrossoverConfig
 src/backtest.py            →  BacktestEngine, simulated Binance spot venue, equity curve
 src/metrics.py             →  return, drawdown, Sharpe, win rate, buy-and-hold baseline
-scripts/run_backtest.py    →  runs it all, writes reports/
+src/pipeline.py            →  one call: bars → backtest → aligned curves, stats, trades
+scripts/run_backtest.py    →  CLI: runs the pipeline, writes reports/
+app/streamlit_app.py       →  interactive dashboard on the same pipeline
 ```
 
 Modelling choices:
@@ -99,7 +125,7 @@ python scripts/run_backtest.py      # prints the table, writes reports/
 ```
 
 ```powershell
-python -m pytest -q                 # 39 tests, ~2 s
+python -m pytest -q                 # 41 tests, ~3 s
 ```
 
 Useful flags for the runner: `--fast 20 --slow 100`, `--trade-size 0.25`, `--capital 50000`,
@@ -123,15 +149,19 @@ python -m src.data_loader
 - `tests/test_backtest_smoke.py`: a synthetic run reconciles final equity with
   realised PnL and checks fees are charged. An end-to-end run of the script
   produces every report file (skipped if `data/raw/` is empty).
+- `tests/test_app.py`: the shared pipeline aligns and reconciles its curves, and the
+  Streamlit app renders the default backtest headlessly via `AppTest`.
 
 ## Project layout
 
 ```
-src/            strategy, data loader, engine wrapper, metrics
+src/            strategy, data loader, engine wrapper, metrics, pipeline
+app/            Streamlit dashboard
 scripts/        download_data.py, run_backtest.py
 tests/          pytest suite
 data/raw/       downloaded CSVs (git-ignored)
 reports/        generated summary, metrics, trades and chart
+docs/           README images
 ```
 
 ## Notes on NautilusTrader 2.0
