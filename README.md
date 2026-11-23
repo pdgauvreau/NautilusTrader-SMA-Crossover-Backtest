@@ -203,6 +203,52 @@ on-chain flows, order-book imbalance).
 python scripts/run_ml.py            # ~15 s, writes reports/ml/
 ```
 
+### Stage 2b: ML as a position-size filter
+
+Since the model can't replace the SMA rule, `scripts/run_ml_sizing.py` gives it
+a narrower job: **keep the SMA 10/50 entries and exits, and let the model decide
+how much to bet on each entry.**
+
+- **Model:** trained only on days when SMA10 > SMA50, to predict whether the next
+  20 days are up (same purged walk-forward).
+- **Schemes:** all sizing rules were fixed before looking at results.
+  - *ML size:* 25–99% of cash, scaled by the predicted probability.
+  - *ML gate:* skip the entry when P < 0.5.
+  - *Vol target (no ML):* scale down when 30-day volatility is above 60% a year.
+  - *Controls:* logistic regression, and a model trained on shuffled labels.
+
+Sharpe ratios are compared because smaller bets shrink returns and drawdowns
+together.
+
+| Sharpe (out-of-sample) | BTC | ETH | SOL | Average |
+|---|---:|---:|---:|---:|
+| Fixed 99% (Stage 1 rule) | 1.11 | 1.19 | 1.34 | **1.21** |
+| Vol target 60%, no ML | **1.16** | **1.21** | 1.17 | 1.18 |
+| ML size (LightGBM) | 1.04 | 0.86 | **1.52** | 1.14 |
+| ML gate (LightGBM) | 1.06 | 0.47 | 1.43 | 0.99 |
+| ML size (logistic regression) | 0.82 | 0.88 | 1.15 | 0.95 |
+| ML size, shuffled labels (control) | 0.68 | 0.91 | 1.20 | 0.93 |
+| Buy & hold | 0.98 | 0.98 | 0.97 | 0.98 |
+
+![Bets vs outcomes](reports/ml_sizing/bets_vs_outcomes.png)
+
+What this says:
+
+- **The model's bet sizes are unrelated to trade outcomes.** Across 66 SMA
+  entries, the rank correlation between ML bet size and trade return is +0.02.
+  The shuffled control reached −0.35 purely by chance, which shows how noisy
+  66 trades are.
+- **The SOL improvement is one trade.** In November 2022 (the FTX collapse) the
+  SMA rule entered just before a −54% trade, and the model happened to bet 42%
+  instead of 99%. Logistic regression and the other two assets don't back it up.
+- **No ML scheme beats the plain rule on average.** The simple volatility target
+  is the only scheme that improves Sharpe and drawdown on BTC and ETH, and it
+  needs no model. It still hurts SOL.
+
+```powershell
+python scripts/run_ml_sizing.py     # ~10 s, writes reports/ml_sizing/
+```
+
 The dashboard's **Stage 2 ML** tab shows the AUC per fold, calibration, feature
 importance, and equity curves for each symbol.
 
@@ -220,6 +266,7 @@ scripts/run_research.py    →  Stage 1 research across symbols, writes reports/
 src/ml/                    →  features/labels, purged walk-forward training, evaluation
 src/strategies/ml_signal.py   long-only strategy driven by model probabilities
 scripts/run_ml.py          →  Stage 2 ML experiment, writes reports/ml/
+scripts/run_ml_sizing.py   →  Stage 2b ML/vol sizing of SMA entries, writes reports/ml_sizing/
 scripts/run_backtest.py    →  CLI: runs the pipeline, writes reports/
 app/streamlit_app.py       →  interactive dashboard on the same pipeline
 ```
@@ -261,7 +308,7 @@ python scripts/run_backtest.py      # prints the table, writes reports/
 ```
 
 ```powershell
-python -m pytest -q                 # 77 tests, ~10 s
+python -m pytest -q                 # 88 tests, ~20 s
 ```
 
 Useful flags for the runner: `--fast 20 --slow 100`, `--trade-size 0.25`, `--capital 50000`,
@@ -291,6 +338,8 @@ python -m src.data_loader
 - `tests/test_ml.py`: no feature leakage, label maths, purge gap between train
   and test, recovering a planted signal, finding nothing in noise or shuffled
   labels, the ML decision rule, and an ML strategy run in Nautilus.
+- `tests/test_sizing.py`: sizing maps, per-entry sizing and skipping in the
+  SMA strategy, and the SMA-long training filter.
 - `tests/test_app.py`: the shared pipeline aligns and reconciles its curves, and the
   Streamlit app renders the default backtest headlessly via `AppTest`.
 
@@ -302,7 +351,7 @@ app/            Streamlit dashboard
 scripts/        download_data.py, run_backtest.py
 tests/          pytest suite
 data/raw/       downloaded CSVs (git-ignored)
-reports/        generated summary, metrics, trades and chart; research/ (Stage 1), ml/ (Stage 2)
+reports/        generated summary, metrics, trades and chart; research/ (Stage 1), ml/ and ml_sizing/ (Stage 2)
 docs/           README images
 ```
 

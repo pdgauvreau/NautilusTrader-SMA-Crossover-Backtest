@@ -35,6 +35,7 @@ from src.strategies.sma_crossover import Signal  # noqa: E402
 RAW_DIR = ROOT / "data" / "raw"
 RESEARCH_DIR = ROOT / "reports" / "research"
 ML_DIR = ROOT / "reports" / "ml"
+SIZING_DIR = ROOT / "reports" / "ml_sizing"
 STRATEGY_COLOR = "#1f6feb"
 BNH_COLOR = "#8b949e"
 FAST_COLOR = "#d29922"
@@ -401,4 +402,38 @@ with tab_ml:
             th["max_drawdown"] = th["max_drawdown"].map(pct)
             th["time_in_market"] = th["time_in_market"].map(lambda x: f"{x:.0%}")
             st.dataframe(th, hide_index=True, use_container_width=True)
+
+        st.subheader("3. Can ML at least size the SMA trades?")
+        sz_path = SIZING_DIR / "results.json"
+        if not sz_path.exists():
+            st.info("Run `python scripts/run_ml_sizing.py` to add this section.")
+        else:
+            sz = json.loads(sz_path.read_text(encoding="utf-8"))
+            st.markdown(
+                "Same SMA 10/50 entries and exits every time; only the amount bet on each entry changes. "
+                f"The model is trained on SMA-long days to predict whether the next {sz['settings']['horizon_days']} "
+                f"days are up (out-of-sample AUC {sz['auc']['lgbm']:.3f}).",
+            )
+            scheme_names = {
+                "fixed": "Fixed 99%", "vol_target": "Vol target (no ML)", "ml_size": "ML size",
+                "ml_gate": "ML gate", "ml_size_logreg": "ML size (logreg)",
+                "ml_size_shuffled": "ML size (shuffled control)", "bnh": "Buy & hold",
+            }
+            sharpe = pd.DataFrame(
+                {sym: {scheme_names[r["scheme"]]: r["sharpe_ratio"] for r in v["stats"]}
+                 for sym, v in sz["symbols"].items()},
+            )
+            sharpe["Average"] = sharpe.mean(axis=1)
+            st.dataframe(sharpe.style.format("{:.2f}").background_gradient(cmap="RdYlGn", vmin=0.5, vmax=1.5),
+                         use_container_width=True)
+            st.caption("Sharpe ratio, out-of-sample.")
+            corr = sz["bet_correlation"]
+            st.markdown(
+                f"Did bigger bets go to better trades? Rank correlation between bet size and trade return "
+                f"over {sz['n_entries']} entries: **ML {corr['ml_size']:+.2f}**, shuffled control "
+                f"{corr['ml_size_shuffled']:+.2f}, vol target {corr['vol_target']:+.2f}.",
+            )
+            st.image(str(SIZING_DIR / "bets_vs_outcomes.png"), use_container_width=True)
+            ssym = st.radio("Symbol", list(sz["symbols"]), horizontal=True, key="sizing_symbol")
+            st.image(str(SIZING_DIR / f"{ssym}_equity.png"), use_container_width=True)
 
