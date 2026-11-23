@@ -10,14 +10,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import pandas as pd
-from nautilus_trader.model import BarType
 
 from src.backtest import BacktestOutput
 from src.backtest import realized_pnls
 from src.backtest import run_backtest
-from src.data_loader import DEFAULT_BAR_TYPE
 from src.data_loader import TAKER_FEE
-from src.data_loader import btcusdt_instrument
+from src.data_loader import bar_type_for
+from src.data_loader import binance_spot_instrument
 from src.data_loader import to_nautilus_bars
 from src.metrics import PerformanceStats
 from src.metrics import buy_and_hold_equity
@@ -62,19 +61,35 @@ def run_pipeline(
     slow: int = 50,
     trade_size: float = 0.5,
     capital: float = 100_000.0,
+    *,
+    symbol: str = "BTCUSDT",
+    interval: str = "1d",
+    position_fraction: float | None = None,
+    execution_delay_bars: int = 0,
+    cost_rate: float = float(TAKER_FEE),
+    trade_start: pd.Timestamp | None = None,
 ) -> PipelineResult:
-    """Run the SMA crossover backtest on ``df`` and compute all report data."""
-    instrument = btcusdt_instrument()
-    bar_type = BarType.from_str(DEFAULT_BAR_TYPE)
+    """Run the SMA crossover backtest on ``df`` and compute all report data.
+
+    With ``trade_start``, bars before it only warm up the indicators: no trades
+    happen before it, and the equity curves, buy & hold and stats all start at
+    the first bar on or after it.
+    """
+    instrument = binance_spot_instrument(symbol)
+    bar_type = bar_type_for(symbol, interval)
     bars = to_nautilus_bars(df, instrument, bar_type)
+    start_ns = None if trade_start is None else pd.Timestamp(trade_start).value
     config = SmaCrossoverConfig(
         bar_type=bar_type,
         trade_size=trade_size,
         fast_period=fast,
         slow_period=slow,
+        position_fraction=position_fraction,
+        execution_delay_bars=execution_delay_bars,
+        trade_start_ns=start_ns,
     )
 
-    out = run_backtest(bars, instrument, config, starting_capital=capital)
+    out = run_backtest(bars, instrument, config, starting_capital=capital, cost_rate=cost_rate)
     if out.bars_seen != len(bars):
         # Nautilus logs handler exceptions instead of raising; fail loudly here.
         raise RuntimeError(f"Strategy saw {out.bars_seen} of {len(bars)} bars")
@@ -85,7 +100,12 @@ def run_pipeline(
         name="close",
     )
     equity = out.equity.reindex(closes.index).ffill().fillna(capital)
-    bnh = buy_and_hold_equity(closes, capital, float(TAKER_FEE))
+    if start_ns is not None:
+        keep = closes.index >= pd.Timestamp(start_ns, unit="ns", tz="UTC")
+        if not keep.any():
+            raise ValueError("trade_start is after the last bar")
+        closes, equity = closes[keep], equity[keep]
+    bnh = buy_and_hold_equity(closes, capital, cost_rate)
 
     strat_stats = compute_stats(equity, realized_pnls(out.positions), capital)
     bnh_stats = compute_stats(bnh, [float(bnh.iloc[-1]) - capital], capital)

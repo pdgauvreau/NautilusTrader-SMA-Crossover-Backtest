@@ -6,6 +6,15 @@ Rule
 * Exit to flat when the fast SMA crosses back **below** the slow SMA.
 * Never short. No signals until both SMAs are warmed up.
 
+Research options (all off by default, so the original rule is unchanged):
+
+* ``position_fraction`` sizes each entry as a fraction of free quote balance
+  instead of a fixed coin quantity, so results compare across assets and years.
+* ``execution_delay_bars`` acts on a signal N bars late, to test how fragile the
+  edge is to execution timing.
+* ``trade_start_ns`` lets indicators warm up on earlier bars but blocks trading
+  before that time (used by walk-forward test windows).
+
 The crossover decision is factored out into :func:`crossover_signal`, a pure
 function, so it can be unit-tested without spinning up an engine.
 """
@@ -60,6 +69,9 @@ class SmaCrossoverConfig(StrategyConfig):
         fast_period: int = 10,
         slow_period: int = 50,
         close_on_stop: bool = True,
+        position_fraction: float | None = None,
+        execution_delay_bars: int = 0,
+        trade_start_ns: int | None = None,
         **kwargs: object,
     ) -> None:
         if fast_period <= 0 or slow_period <= 0:
@@ -68,11 +80,18 @@ class SmaCrossoverConfig(StrategyConfig):
             raise ValueError("fast_period must be smaller than slow_period")
         if trade_size <= 0:
             raise ValueError("trade_size must be positive")
+        if position_fraction is not None and not 0 < position_fraction <= 1:
+            raise ValueError("position_fraction must be in (0, 1]")
+        if execution_delay_bars < 0:
+            raise ValueError("execution_delay_bars must be >= 0")
         self.bar_type = bar_type
         self.trade_size = trade_size
         self.fast_period = fast_period
         self.slow_period = slow_period
         self.close_on_stop = close_on_stop
+        self.position_fraction = position_fraction
+        self.execution_delay_bars = execution_delay_bars
+        self.trade_start_ns = trade_start_ns
 
 
 class SmaCrossover(Strategy):
@@ -86,6 +105,7 @@ class SmaCrossover(Strategy):
         self._prev_diff: float | None = None
         self.bars_seen = 0
         self.signals: list[tuple[int, Signal]] = []
+        self._pending: tuple[Signal, int] | None = None  # (signal, bars until execution)
 
     def on_start(self) -> None:
         bar_type = self.config.bar_type
@@ -105,15 +125,39 @@ class SmaCrossover(Strategy):
         diff = self.fast.value - self.slow.value
         signal = crossover_signal(self._prev_diff, diff)
         self._prev_diff = diff
-        if signal is None:
-            return
 
+        start = self.config.trade_start_ns
+        if signal is not None and (start is None or bar.ts_event >= start):
+            # A newer signal replaces any one still waiting to execute.
+            self._pending = (signal, self.config.execution_delay_bars)
+
+        if self._pending is None:
+            return
+        pending_signal, bars_left = self._pending
+        if bars_left > 0:
+            self._pending = (pending_signal, bars_left - 1)
+            return
+        self._pending = None
+        self._execute(pending_signal, bar)
+
+    def _entry_quantity(self, bar: Bar):
+        fraction = self.config.position_fraction
+        if fraction is None:
+            return self.instrument.make_qty(self.config.trade_size)
+        account = self.portfolio.account(bar.bar_type.instrument_id.venue)
+        free = account.balance_free(self.instrument.quote_currency).as_double()
+        return self.instrument.make_qty(fraction * free / bar.close.as_double())
+
+    def _execute(self, signal: Signal, bar: Bar) -> None:
         instrument_id = bar.bar_type.instrument_id
         if signal is Signal.ENTER_LONG and self.portfolio.is_net_flat(instrument_id):
+            quantity = self._entry_quantity(bar)
+            if quantity.as_double() <= 0:
+                return
             order = self.order_factory.market(
                 instrument_id=instrument_id,
                 order_side=OrderSide.BUY,
-                quantity=self.instrument.make_qty(self.config.trade_size),
+                quantity=quantity,
             )
             self.submit_order(order)
             self.signals.append((bar.ts_event, signal))

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from dataclasses import field
+from decimal import Decimal
 
 import pandas as pd
 from nautilus_trader.backtest import BacktestEngine
@@ -22,7 +23,8 @@ from nautilus_trader.model import Money
 from nautilus_trader.model import OmsType
 from nautilus_trader.model import TraderId
 
-from src.data_loader import btcusdt_fee_model
+from src.data_loader import TAKER_FEE
+from src.data_loader import fee_model
 from src.strategies.sma_crossover import SmaCrossover
 from src.strategies.sma_crossover import SmaCrossoverConfig
 
@@ -52,8 +54,13 @@ def run_backtest(
     config: SmaCrossoverConfig,
     starting_capital: float = 100_000.0,
     log_level: LogLevel = LogLevel.WARNING,
+    cost_rate: float | Decimal = TAKER_FEE,
 ) -> BacktestOutput:
-    """Run the SMA crossover strategy over ``bars`` and collect results."""
+    """Run the SMA crossover strategy over ``bars`` and collect results.
+
+    ``cost_rate`` is charged per side on every fill: the Binance taker fee by
+    default, or fee + an estimated slippage for more conservative runs.
+    """
     if not bars:
         raise ValueError("No bars supplied")
 
@@ -74,7 +81,7 @@ def run_backtest(
             # Multi-currency cash account: spot venues require base_currency=None.
             starting_balances=[Money(starting_capital, quote), Money(0, base)],
             base_currency=None,
-            fee_model=btcusdt_fee_model(),
+            fee_model=fee_model(cost_rate),
             # Market orders fill at the close of the bar that generated the signal.
             bar_execution=True,
         )

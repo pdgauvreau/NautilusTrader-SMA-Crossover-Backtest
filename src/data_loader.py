@@ -32,7 +32,13 @@ import pandas as pd
 from nautilus_trader.execution import MakerTakerFeeModel
 from nautilus_trader.model import Bar
 from nautilus_trader.model import BarType
+from nautilus_trader.model import Currency
 from nautilus_trader.model import CurrencyPair
+from nautilus_trader.model import InstrumentId
+from nautilus_trader.model import Money
+from nautilus_trader.model import Price
+from nautilus_trader.model import Quantity
+from nautilus_trader.model import Symbol
 from nautilus_trader.testkit.providers import TestInstrumentProvider
 
 KLINE_COLUMNS: list[str] = [
@@ -189,6 +195,57 @@ def validate_daily(df: pd.DataFrame) -> dict[str, object]:
         "first_close": float(df["close"].iloc[0]),
         "last_close": float(df["close"].iloc[-1]),
     }
+
+
+# (price_precision, size_precision) for Binance spot pairs used in this project.
+# SOLUSDT traded below $5 at listing, so it needs 4 price decimals.
+SPOT_SPECS: dict[str, tuple[int, int]] = {
+    "BTCUSDT": (2, 6),
+    "ETHUSDT": (2, 5),
+    "SOLUSDT": (4, 3),
+}
+
+
+def binance_spot_instrument(symbol: str) -> CurrencyPair:
+    """Return a Binance spot ``CurrencyPair`` for a ``*USDT`` symbol in :data:`SPOT_SPECS`."""
+    if symbol == "BTCUSDT":
+        return TestInstrumentProvider.btcusdt_binance()
+    if symbol not in SPOT_SPECS or not symbol.endswith("USDT"):
+        raise ValueError(f"No spot spec for {symbol}; add it to SPOT_SPECS")
+    price_prec, size_prec = SPOT_SPECS[symbol]
+    base = symbol[: -len("USDT")]
+    return CurrencyPair(
+        instrument_id=InstrumentId.from_str(f"{symbol}.BINANCE"),
+        raw_symbol=Symbol(symbol),
+        base_currency=Currency.from_str(base),
+        quote_currency=Currency.from_str("USDT"),
+        price_precision=price_prec,
+        size_precision=size_prec,
+        price_increment=Price(10**-price_prec, price_prec),
+        size_increment=Quantity(10**-size_prec, size_prec),
+        ts_event=0,
+        ts_init=0,
+        max_quantity=Quantity(9_000_000, size_prec),
+        min_quantity=Quantity(10**-size_prec, size_prec),
+        min_notional=Money(10, Currency.from_str("USDT")),
+    )
+
+
+def bar_type_for(symbol: str, interval: str = "1d") -> BarType:
+    """Nautilus ``BarType`` for a Binance kline interval such as ``1d`` or ``4h``."""
+    units = {"m": "MINUTE", "h": "HOUR", "d": "DAY"}
+    step, unit = int(interval[:-1]), units[interval[-1]]
+    return BarType.from_str(f"{symbol}.BINANCE-{step}-{unit}-LAST-EXTERNAL")
+
+
+def fee_model(cost_rate: float | Decimal = TAKER_FEE) -> MakerTakerFeeModel:
+    """Maker/taker fee model charging ``cost_rate`` per side.
+
+    Use ``TAKER_FEE + slippage`` to fold an estimated slippage/spread cost into
+    every fill. A simple, conservative proxy for execution cost on liquid pairs.
+    """
+    rate = Decimal(str(cost_rate))
+    return MakerTakerFeeModel(maker_rate=rate, taker_rate=rate)
 
 
 def btcusdt_instrument() -> CurrencyPair:
