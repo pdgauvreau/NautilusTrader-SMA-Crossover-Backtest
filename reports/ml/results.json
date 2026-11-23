@@ -1,0 +1,335 @@
+{
+  "settings": {
+    "horizon_days": 5,
+    "enter": 0.52,
+    "exit": 0.48,
+    "cost_per_side": 0.0015,
+    "position_fraction": 0.99,
+    "features": [
+      "ret_1",
+      "ret_3",
+      "ret_5",
+      "ret_10",
+      "ret_20",
+      "ret_60",
+      "vol_10",
+      "vol_30",
+      "vol_ratio",
+      "sma_10_50",
+      "close_sma20",
+      "close_sma200",
+      "rsi_14",
+      "dist_high_90",
+      "dist_low_90",
+      "volume_z_30",
+      "range_10"
+    ],
+    "train_days": 730,
+    "test_days": 180
+  },
+  "classification": {
+    "lgbm": {
+      "pooled_auc": 0.5065070053711734,
+      "per_symbol_auc": {
+        "BTCUSDT": 0.5145782552111421,
+        "ETHUSDT": 0.5083934121880066,
+        "SOLUSDT": 0.49975117608180086
+      },
+      "mean_fold_auc": 0.5219487744893029,
+      "folds_auc_above_0_5": 0.6363636363636364
+    },
+    "logreg": {
+      "pooled_auc": 0.5163349755146709,
+      "per_symbol_auc": {
+        "BTCUSDT": 0.5067932563564479,
+        "ETHUSDT": 0.5368538977408434,
+        "SOLUSDT": 0.5118035846195715
+      },
+      "mean_fold_auc": 0.5465175933171226,
+      "folds_auc_above_0_5": 0.8181818181818182
+    },
+    "shuffled": {
+      "pooled_auc": 0.4969684742943963,
+      "per_symbol_auc": {
+        "BTCUSDT": 0.4947495683275144,
+        "ETHUSDT": 0.49741851746505394,
+        "SOLUSDT": 0.4964179723442583
+      },
+      "mean_fold_auc": 0.5065113170304371,
+      "folds_auc_above_0_5": 0.5454545454545454
+    }
+  },
+  "importance": {
+    "close_sma200": 0.08972640852504848,
+    "sma_10_50": 0.08798723106881022,
+    "vol_30": 0.08754727346674836,
+    "dist_low_90": 0.07806376542590149,
+    "ret_60": 0.07788751268121798,
+    "vol_ratio": 0.07752922755828599,
+    "range_10": 0.06236020936429793,
+    "rsi_14": 0.05788904270152859,
+    "dist_high_90": 0.05786899125330074,
+    "vol_10": 0.055552566733831285,
+    "ret_20": 0.045685122649433675,
+    "ret_5": 0.04204477960645268,
+    "ret_10": 0.041181738746004906,
+    "volume_z_30": 0.04086628770357123,
+    "close_sma20": 0.03645734735016463,
+    "ret_1": 0.03459718483552627,
+    "ret_3": 0.026755310329875534
+  },
+  "symbols": {
+    "BTCUSDT": {
+      "oos_start": "2020-07-20",
+      "oos_end": "2025-12-20",
+      "stats": {
+        "lgbm": {
+          "total_return": 1.6242204946352001,
+          "num_trades": 111,
+          "win_rate": 0.6126126126126126,
+          "max_drawdown": -0.6717184983245214,
+          "sharpe_ratio": 0.6198050790080705,
+          "final_equity": 262422.04946352
+        },
+        "logreg": {
+          "total_return": 2.1032912937108,
+          "num_trades": 136,
+          "win_rate": 0.4852941176470588,
+          "max_drawdown": -0.7731083252855326,
+          "sharpe_ratio": 0.6624830801703089,
+          "final_equity": 310329.12937108
+        },
+        "shuffled": {
+          "total_return": 0.9238809379776001,
+          "num_trades": 163,
+          "win_rate": 0.5460122699386503,
+          "max_drawdown": -0.6166410410411389,
+          "sharpe_ratio": 0.4903178879655351,
+          "final_equity": 192388.09379776
+        },
+        "sma": {
+          "total_return": 6.978292446563801,
+          "num_trades": 23,
+          "win_rate": 0.4782608695652174,
+          "max_drawdown": -0.5416676466852457,
+          "sharpe_ratio": 1.1131813509552162,
+          "final_equity": 797829.24465638
+        },
+        "bnh": {
+          "total_return": 8.542080641003706,
+          "num_trades": 1,
+          "win_rate": 1.0,
+          "max_drawdown": -0.7662925431645935,
+          "sharpe_ratio": 1.0023020042381103,
+          "final_equity": 954208.0641003705
+        }
+      },
+      "thresholds": [
+        {
+          "enter": 0.5,
+          "exit": 0.5,
+          "total_return": 1.7079628618310996,
+          "sharpe_ratio": 0.6345488317459551,
+          "max_drawdown": -0.6603066938480957,
+          "num_trades": 150,
+          "time_in_market": 0.6070707070707071
+        },
+        {
+          "enter": 0.52,
+          "exit": 0.48,
+          "total_return": 1.6242204946352001,
+          "sharpe_ratio": 0.6198050790080705,
+          "max_drawdown": -0.6717184983245214,
+          "num_trades": 111,
+          "time_in_market": 0.5863636363636363
+        },
+        {
+          "enter": 0.55,
+          "exit": 0.45,
+          "total_return": 1.4299978232204,
+          "sharpe_ratio": 0.5885126553405118,
+          "max_drawdown": -0.6357003397156958,
+          "num_trades": 59,
+          "time_in_market": 0.5595959595959596
+        },
+        {
+          "enter": 0.6,
+          "exit": 0.4,
+          "total_return": 1.404301714147,
+          "sharpe_ratio": 0.5849042084584788,
+          "max_drawdown": -0.6369053888405769,
+          "num_trades": 29,
+          "time_in_market": 0.55
+        }
+      ]
+    },
+    "ETHUSDT": {
+      "oos_start": "2020-07-20",
+      "oos_end": "2025-12-20",
+      "stats": {
+        "lgbm": {
+          "total_return": -0.19061511197080006,
+          "num_trades": 122,
+          "win_rate": 0.5983606557377049,
+          "max_drawdown": -0.7885873577877438,
+          "sharpe_ratio": 0.22461527659624184,
+          "final_equity": 80938.48880292
+        },
+        "logreg": {
+          "total_return": 1.0424328402927996,
+          "num_trades": 119,
+          "win_rate": 0.5882352941176471,
+          "max_drawdown": -0.7999976431563179,
+          "sharpe_ratio": 0.528315029896698,
+          "final_equity": 204243.28402927998
+        },
+        "shuffled": {
+          "total_return": 3.2091151467595997,
+          "num_trades": 158,
+          "win_rate": 0.5316455696202531,
+          "max_drawdown": -0.6559693014105172,
+          "sharpe_ratio": 0.7287421131898247,
+          "final_equity": 420911.51467596
+        },
+        "sma": {
+          "total_return": 17.270527846350998,
+          "num_trades": 25,
+          "win_rate": 0.48,
+          "max_drawdown": -0.4956737507714022,
+          "sharpe_ratio": 1.1898509689483454,
+          "final_equity": 1827052.7846350998
+        },
+        "bnh": {
+          "total_return": 11.42346571732047,
+          "num_trades": 1,
+          "win_rate": 1.0,
+          "max_drawdown": -0.7930253453633334,
+          "sharpe_ratio": 0.9815865450707487,
+          "final_equity": 1242346.571732047
+        }
+      },
+      "thresholds": [
+        {
+          "enter": 0.5,
+          "exit": 0.5,
+          "total_return": 0.7530488450588,
+          "sharpe_ratio": 0.46665809122478874,
+          "max_drawdown": -0.7711888737395423,
+          "num_trades": 162,
+          "time_in_market": 0.5924242424242424
+        },
+        {
+          "enter": 0.52,
+          "exit": 0.48,
+          "total_return": -0.19061511197080006,
+          "sharpe_ratio": 0.22461527659624184,
+          "max_drawdown": -0.7885873577877438,
+          "num_trades": 122,
+          "time_in_market": 0.5656565656565656
+        },
+        {
+          "enter": 0.55,
+          "exit": 0.45,
+          "total_return": 0.5758764258235001,
+          "sharpe_ratio": 0.430432182521948,
+          "max_drawdown": -0.8153895979057231,
+          "num_trades": 77,
+          "time_in_market": 0.545959595959596
+        },
+        {
+          "enter": 0.6,
+          "exit": 0.4,
+          "total_return": 0.5075949130236002,
+          "sharpe_ratio": 0.4200651095301019,
+          "max_drawdown": -0.8421024276695979,
+          "num_trades": 40,
+          "time_in_market": 0.5373737373737374
+        }
+      ]
+    },
+    "SOLUSDT": {
+      "oos_start": "2021-02-28",
+      "oos_end": "2025-12-20",
+      "stats": {
+        "lgbm": {
+          "total_return": 0.8767741644751001,
+          "num_trades": 122,
+          "win_rate": 0.5327868852459017,
+          "max_drawdown": -0.9451429490575566,
+          "sharpe_ratio": 0.5868934034601025,
+          "final_equity": 187677.41644751
+        },
+        "logreg": {
+          "total_return": 2.339747420072,
+          "num_trades": 108,
+          "win_rate": 0.5185185185185185,
+          "max_drawdown": -0.927777959982333,
+          "sharpe_ratio": 0.7323970780469826,
+          "final_equity": 333974.74200719997
+        },
+        "shuffled": {
+          "total_return": 1.3046382878769998,
+          "num_trades": 147,
+          "win_rate": 0.47619047619047616,
+          "max_drawdown": -0.884382292456859,
+          "sharpe_ratio": 0.6533981263313818,
+          "final_equity": 230463.82878769998
+        },
+        "sma": {
+          "total_return": 38.3053074567264,
+          "num_trades": 18,
+          "win_rate": 0.5,
+          "max_drawdown": -0.7465057686982761,
+          "sharpe_ratio": 1.341106095038266,
+          "final_equity": 3930530.7456726404
+        },
+        "bnh": {
+          "total_return": 8.543327372263718,
+          "num_trades": 1,
+          "win_rate": 1.0,
+          "max_drawdown": -0.9626992725584275,
+          "sharpe_ratio": 0.9774537680161464,
+          "final_equity": 954332.7372263718
+        }
+      },
+      "thresholds": [
+        {
+          "enter": 0.5,
+          "exit": 0.5,
+          "total_return": 0.6751040589119,
+          "sharpe_ratio": 0.5604877175612352,
+          "max_drawdown": -0.9345457835140808,
+          "num_trades": 164,
+          "time_in_market": 0.6881047239612976
+        },
+        {
+          "enter": 0.52,
+          "exit": 0.48,
+          "total_return": 0.8767741644751001,
+          "sharpe_ratio": 0.5868934034601025,
+          "max_drawdown": -0.9451429490575566,
+          "num_trades": 122,
+          "time_in_market": 0.6579396698918611
+        },
+        {
+          "enter": 0.55,
+          "exit": 0.45,
+          "total_return": 0.40137694548470004,
+          "sharpe_ratio": 0.5165685156920834,
+          "max_drawdown": -0.9306475547028801,
+          "num_trades": 85,
+          "time_in_market": 0.64314171883893
+        },
+        {
+          "enter": 0.6,
+          "exit": 0.4,
+          "total_return": 0.6410002092444,
+          "sharpe_ratio": 0.5561710814310995,
+          "max_drawdown": -0.9490406253048994,
+          "num_trades": 53,
+          "time_in_market": 0.6425725668753557
+        }
+      ]
+    }
+  }
+}
