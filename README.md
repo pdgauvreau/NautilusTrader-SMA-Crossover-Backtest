@@ -60,7 +60,7 @@ related to trade outcomes (Spearman ρ −0.17).
   a slightly *lower* Sharpe than simply holding.
 - **The timing itself showed no skill.** Random entry schedules with the same number
   of trades and the same holding lengths beat the 10/50 return 70–84% of the time.
-  Its benefit came from being in cash ~30% of the time, not from choosing *when*.
+  Its benefit came from being in cash roughly a third of the time, not from choosing *when*.
   This is weaker evidence than the crypto version found (there, the rule beat ~92% of
   random timings).
 - **Optimising and ML both made things worse**, again. The out-of-sample tests
