@@ -252,6 +252,61 @@ python scripts/run_ml_sizing.py     # ~10 s, writes reports/ml_sizing/
 The dashboard's **Stage 2 ML** tab shows the AUC per fold, calibration, feature
 importance, and equity curves for each symbol.
 
+## Stage 3: paper trading (live data, simulated fills)
+
+`scripts/paper_trade.py` runs the **same `SmaCrossover` logic** inside a
+NautilusTrader `LiveNode` in `SANDBOX` mode:
+
+- **Data in:** live public Binance market data (daily bars plus best bid/ask), with
+  no API keys.
+- **Orders out:** Nautilus's in-process **sandbox** execution client simulates every
+  fill. No exchange execution client exists in this code path, so no order can reach
+  an exchange. A test enforces this.
+
+```powershell
+python scripts/paper_trade.py                                   # BTCUSDT daily, SMA 10/50; leave running
+```
+
+```powershell
+python scripts/paper_trade.py --interval 1m --fast 3 --slow 8 --duration 600   # 10-minute smoke test
+```
+
+```powershell
+python scripts/paper_report.py paper/BTCUSDT_1d_10-50.jsonl     # summarise a session
+```
+
+What the paper session adds over a backtest:
+
+- **Warmup from live history:** on start it requests the last 60 bars, warms the
+  SMAs, and (by default) joins an existing uptrend. Crosses inside that history are
+  not traded.
+- **Real spread:** fills are driven by live **bid/ask quotes**, so buys pay the ask
+  and sells hit the bid, unlike the backtest's bar-close fills. Each fill records how
+  far it landed from the bar close. `paper_report.py` compares that with the 5 bps
+  slippage the research assumed. Pass `--bar-fills` to fill at the bar close instead,
+  as the backtest does.
+- **Journal:** every warmup, bar, signal, fill and stop is appended to
+  `paper/*.jsonl` (git-ignored).
+
+Notes:
+
+- **Region.** `api.binance.com` answers **HTTP 451 (restricted location)** from this
+  machine, so the default `--region us` uses **Binance.US** public data. Its prices
+  track Binance.com closely but not exactly, and the research used Binance.com
+  archives. Use the region where you would actually trade.
+- **Fees.** The simulated fee defaults to 0.1% per side. Set `--fee` to your actual
+  fee tier.
+- **Restarts.** Each run is a fresh session: the sandbox account resets to
+  `--capital`. Because the rule is "long while SMA10 > SMA50", a restarted session
+  rejoins the trend and its *decisions* carry over, but its cash history does not.
+  For a continuous record, run it on an always-on machine.
+- **What it can't tell you.** On daily bars it trades a few times a year, so it takes
+  months of paper trading before the record says much. A smoke test proves the
+  plumbing, not the strategy.
+
+Going from here to real orders would mean adding an exchange *execution* client
+with API keys. That is deliberately not in this repo.
+
 ## How it works
 
 ```
@@ -267,6 +322,9 @@ src/ml/                    →  features/labels, purged walk-forward training, e
 src/strategies/ml_signal.py   long-only strategy driven by model probabilities
 scripts/run_ml.py          →  Stage 2 ML experiment, writes reports/ml/
 scripts/run_ml_sizing.py   →  Stage 2b ML/vol sizing of SMA entries, writes reports/ml_sizing/
+src/paper/                 →  sandbox LiveNode builder, instrumented strategy, JSONL journal
+scripts/paper_trade.py     →  Stage 3 paper trading on live public data (simulated fills)
+scripts/paper_report.py    →  summarise a paper journal, slippage vs backtest assumption
 scripts/run_backtest.py    →  CLI: runs the pipeline, writes reports/
 app/streamlit_app.py       →  interactive dashboard on the same pipeline
 ```
@@ -308,7 +366,7 @@ python scripts/run_backtest.py      # prints the table, writes reports/
 ```
 
 ```powershell
-python -m pytest -q                 # 88 tests, ~20 s
+python -m pytest -q                 # 99 tests, ~10 s
 ```
 
 Useful flags for the runner: `--fast 20 --slow 100`, `--trade-size 0.25`, `--capital 50000`,
@@ -340,6 +398,9 @@ python -m src.data_loader
   labels, the ML decision rule, and an ML strategy run in Nautilus.
 - `tests/test_sizing.py`: sizing maps, per-entry sizing and skipping in the
   SMA strategy, and the SMA-long training filter.
+- `tests/test_paper.py`: the paper code can't reach a real exchange (no exchange
+  execution client, no credentials, SANDBOX node), config wiring, journal
+  durability, the paper strategy run offline, and the report maths.
 - `tests/test_app.py`: the shared pipeline aligns and reconciles its curves, and the
   Streamlit app renders the default backtest headlessly via `AppTest`.
 
@@ -353,6 +414,7 @@ tests/          pytest suite
 data/raw/       downloaded CSVs (git-ignored)
 reports/        generated summary, metrics, trades and chart; research/ (Stage 1), ml/ and ml_sizing/ (Stage 2)
 docs/           README images
+paper/          paper-trading journals (git-ignored)
 ```
 
 ## Notes on NautilusTrader 2.0
