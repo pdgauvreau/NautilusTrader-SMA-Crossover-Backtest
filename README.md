@@ -121,12 +121,31 @@ pip install -r requirements.txt     # pins nautilus-trader==2.0.0rc6
 
 ### Adding a stock or ETF
 
-1. Add it with its listing exchange to `STOCKS` (or `ETFS`) in
-   [`src/data_loader.py`](src/data_loader.py), e.g. `"AAPL": "NASDAQ"`.
-2. Run `python scripts/download_data.py --symbols AAPL`.
+- **Public example symbols** (committed): add them with their listing exchange to
+  `STOCKS` or `ETFS` in [`src/data_loader.py`](src/data_loader.py), e.g.
+  `"AAPL": "NASDAQ"`.
+- **Your own symbols** (private): copy `symbols.local.example.csv` to
+  `symbols.local.csv` and list them one per line as `TICKER,VENUE`. That file is
+  git-ignored, so personal holdings are never committed.
 
-Every script, the dashboard and the forward test then include it automatically. The
-forward test starts a newly added symbol at its latest close.
+Then run `python scripts/download_data.py`. Every script, the dashboard and the
+forward test include the new symbols automatically; the forward test starts each
+new symbol at its latest close.
+
+To keep results that include private symbols out of git, write them to the
+git-ignored `reports/portfolio/`. The dashboard shows them automatically when they
+exist:
+
+```powershell
+python scripts/run_research.py --report-dir reports/portfolio/research
+```
+
+Other details:
+
+- **Trading halts:** if a symbol was halted for a long stretch (e.g. a stock
+  suspended for two years), only data after the last gap is kept.
+- **Short histories:** symbols with too little history for the walk-forward
+  research (about 760 sessions) are listed as skipped instead of failing.
 
 ## What you can run
 
@@ -138,7 +157,7 @@ forward test starts a newly added symbol at its latest close.
 | `python scripts/run_ml_sizing.py` | **Stage 2b:** ML or volatility targeting as a position-size filter | `reports/ml_sizing/` |
 | `streamlit run app/streamlit_app.py` | Interactive dashboard: run backtests and browse research | localhost:8501 |
 | `python scripts/forward_test.py` | **Stage 3:** daily forward test (paper trading) | `paper/forward_status.md` |
-| `python -m pytest -q` | 108 tests | |
+| `python -m pytest -q` | 111 tests | |
 
 ## How it works
 

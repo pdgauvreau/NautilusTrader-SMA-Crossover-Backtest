@@ -31,3 +31,9 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Personal symbol list (your own holdings); never committed
+symbols.local.csv
+
+# Results that include personal symbols; never committed
+reports/portfolio/

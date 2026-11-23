@@ -1,0 +1,4 @@
+# Copy to symbols.local.csv (git-ignored) and list your own symbols, one per line.
+# TICKER,VENUE   (VENUE: NASDAQ, NYSE, ARCA, AMEX, BATS or OTC)
+AAPL,NASDAQ
+MSFT,NASDAQ

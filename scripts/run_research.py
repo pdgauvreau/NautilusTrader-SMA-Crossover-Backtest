@@ -253,16 +253,29 @@ def main(argv: list[str] | None = None) -> int:
     args.report_dir.mkdir(parents=True, exist_ok=True)
     settings = ResearchSettings(cost_rate=args.cost)
 
-    results = []
+    # Walk-forward needs warm-up (longest SMA) + a training window + a minimum test window.
+    min_bars = max(s for _, s in param_grid()) + args.train_bars + 60
+    results, skipped = [], []
     for symbol in args.symbols:
         try:
-            results.append(research_symbol(symbol, args, settings))
+            n = len(load_bars(args.raw_dir, symbol))
         except FileNotFoundError:
             print(f"{symbol}: no data in {args.raw_dir}, skipping (run scripts/download_data.py)", file=sys.stderr)
+            continue
+        if n < min_bars:
+            print(f"{symbol}: {n} sessions, needs {min_bars} for walk-forward research; skipping")
+            skipped.append((symbol, n))
+            continue
+        results.append(research_symbol(symbol, args, settings))
     if not results:
         return 1
 
     summary = write_summary(results, args, settings)
+    if skipped:
+        note = ", ".join(f"{s} ({n})" for s, n in skipped)
+        summary = summary.replace("## Walk-forward (out-of-sample only)",
+                                  f"Skipped for too little history (sessions; {min_bars} needed): {note}.\n\n"
+                                  "## Walk-forward (out-of-sample only)", 1)
     (args.report_dir / "summary.md").write_text(summary, encoding="utf-8")
     (args.report_dir / "results.json").write_text(
         json.dumps(results, indent=2, default=str).replace("NaN", "null"), encoding="utf-8",

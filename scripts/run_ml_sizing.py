@@ -129,6 +129,10 @@ def main(argv: list[str] | None = None) -> int:
                "symbols": {}}
     all_entries = []
     for symbol, df in frames.items():
+        n_oos = int((models["lgbm"].predictions["symbol"] == symbol).sum())
+        if n_oos < 60:
+            print(f"{symbol}: only {n_oos} out-of-sample long-state predictions; skipping")
+            continue
         res = compare_sizing(symbol, df, models, features, settings)
         plot_equity(res, out / f"{symbol}_equity.png")
         res.entries.assign(symbol=symbol).to_csv(out / f"{symbol}_entries.csv", index=False)

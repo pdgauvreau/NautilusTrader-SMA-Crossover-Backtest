@@ -35,9 +35,13 @@ from src.pipeline import run_pipeline  # noqa: E402
 from src.strategies.sma_crossover import Signal  # noqa: E402
 
 RAW_DIR = Path(os.environ.get("ETF_RAW_DIR", ROOT / "data" / "raw"))  # override for demos/tests
-RESEARCH_DIR = ROOT / "reports" / "research"
-ML_DIR = ROOT / "reports" / "ml"
-SIZING_DIR = ROOT / "reports" / "ml_sizing"
+# Private results (including symbols from symbols.local.csv) live in the git-ignored
+# reports/portfolio/; show them when present, otherwise the committed public reports.
+_PRIVATE = ROOT / "reports" / "portfolio"
+REPORTS = _PRIVATE if (_PRIVATE / "research" / "results.json").exists() else ROOT / "reports"
+RESEARCH_DIR = REPORTS / "research"
+ML_DIR = REPORTS / "ml"
+SIZING_DIR = REPORTS / "ml_sizing"
 STRATEGY_COLOR = "#1f6feb"
 BNH_COLOR = "#8b949e"
 FAST_COLOR = "#d29922"

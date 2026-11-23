@@ -71,7 +71,7 @@ def test_missing_file_and_unknown_symbol(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         load_bars(tmp_path, "SPY")
     with pytest.raises(ValueError):
-        load_bars(tmp_path, "TSLA")
+        load_bars(tmp_path, "ZZZZ")
 
 
 # -------------------------------------------------------------------- execution
@@ -200,3 +200,32 @@ def test_forward_state_adds_new_symbols_with_their_own_start(tmp_path: Path) -> 
         '{"start_session": "2025-06-30", "symbols": ["SPY"], "fast": 10, "slow": 50, '
         '"capital_per_symbol": 10000.0, "cost_rate": 0.0003, "created": ""}', encoding="utf-8")
     assert ForwardState.load(tmp_path / "old.json").start_for("SPY") == "2025-06-30"
+
+
+# ------------------------------------------------------------ private symbols
+def test_local_symbols_file_parsing(tmp_path: Path) -> None:
+    from src.data_loader import load_local_symbols
+
+    f = tmp_path / "symbols.local.csv"
+    f.write_text("# my holdings\nTICKER,VENUE\naapl, nasdaq\nIBM,NYSE  # comment\n\n", encoding="utf-8")
+    assert load_local_symbols(f) == {"AAPL": "NASDAQ", "IBM": "NYSE"}
+    assert load_local_symbols(tmp_path / "missing.csv") == {}
+    f.write_text("AAPL,MOON\n", encoding="utf-8")
+    with pytest.raises(ValueError):
+        load_local_symbols(f)
+
+
+def test_local_symbols_file_is_git_ignored() -> None:
+    gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
+    assert "symbols.local.csv" in gitignore
+
+
+def test_trim_before_last_trading_gap() -> None:
+    from src.alpaca_data import trim_before_last_gap
+
+    dates = ["2022-02-24", "2022-02-25", "2024-10-21", "2024-10-22"]  # 2.5-year suspension
+    df = pd.DataFrame({"date": dates, "close": [1.0, 2.0, 20.0, 21.0]})
+    out, dropped = trim_before_last_gap(df)
+    assert dropped == 2 and out["date"].tolist() == ["2024-10-21", "2024-10-22"]
+    weekend = pd.DataFrame({"date": ["2024-01-05", "2024-01-08"], "close": [1.0, 1.0]})
+    assert trim_before_last_gap(weekend)[1] == 0

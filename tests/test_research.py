@@ -142,7 +142,10 @@ def test_downloader_args() -> None:
 
     args = download_data.parse_args(["--symbols", "spy", "QQQ", "--start", "2018-01-01"])
     assert args.symbols == ["SPY", "QQQ"] and args.start == "2018-01-01"
-    assert download_data.parse_args([]).symbols == ["SPY", "QQQ", "IWM", "NVDA", "SOFI"]
+    from src.data_loader import DEFAULT_SYMBOLS
+
+    assert download_data.parse_args([]).symbols == list(DEFAULT_SYMBOLS)
+    assert DEFAULT_SYMBOLS[:5] == ("SPY", "QQQ", "IWM", "NVDA", "SOFI")  # public symbols first
     with pytest.raises(SystemExit):
         download_data.parse_args(["--symbols", "../etc"])
     with pytest.raises(SystemExit):

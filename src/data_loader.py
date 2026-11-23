@@ -46,7 +46,8 @@ from nautilus_trader.model import QuoteTick
 from nautilus_trader.model import Symbol
 
 # Listing venue for each supported symbol (matches Interactive Brokers' symbology in Nautilus).
-# To add a US stock or ETF: add "TICKER": "VENUE" here, then run scripts/download_data.py.
+# To add a public example symbol: add "TICKER": "VENUE" here. For private symbols use
+# symbols.local.csv (below). Then run scripts/download_data.py.
 ETFS: dict[str, str] = {
     "SPY": "ARCA",
     "QQQ": "NASDAQ",
@@ -56,7 +57,32 @@ STOCKS: dict[str, str] = {
     "NVDA": "NASDAQ",  # NVIDIA
     "SOFI": "NASDAQ",  # SoFi Technologies (listed June 2021, so shorter history)
 }
-SYMBOL_VENUES: dict[str, str] = {**ETFS, **STOCKS}
+
+# Personal symbols (e.g. your own holdings) live in a git-ignored file so they are
+# never committed: one "TICKER,VENUE" per line, '#' for comments. See README.
+LOCAL_SYMBOLS_FILE = Path(__file__).resolve().parents[1] / "symbols.local.csv"
+VENUES = ("NASDAQ", "NYSE", "ARCA", "AMEX", "BATS", "OTC")
+
+
+def load_local_symbols(path: str | Path = LOCAL_SYMBOLS_FILE) -> dict[str, str]:
+    """Read ``TICKER,VENUE`` lines from a git-ignored file (missing file -> empty)."""
+    path = Path(path)
+    if not path.exists():
+        return {}
+    out: dict[str, str] = {}
+    for n, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        line = raw.split("#", 1)[0].strip()
+        if not line or line.upper().startswith("TICKER"):
+            continue
+        parts = [x.strip().upper() for x in line.split(",")]
+        if len(parts) < 2 or not parts[0].isalpha() or not 1 <= len(parts[0]) <= 5 or parts[1] not in VENUES:
+            raise ValueError(f"{path}:{n}: expected 'TICKER,VENUE' with VENUE in {VENUES}, got {raw!r}")
+        out[parts[0]] = parts[1]
+    return out
+
+
+LOCAL_SYMBOLS: dict[str, str] = load_local_symbols()
+SYMBOL_VENUES: dict[str, str] = {**ETFS, **STOCKS, **LOCAL_SYMBOLS}
 DEFAULT_SYMBOLS: tuple[str, ...] = tuple(SYMBOL_VENUES)
 DEFAULT_SYMBOL = "SPY"
 

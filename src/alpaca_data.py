@@ -21,6 +21,7 @@ DEFAULT_OUT_DIR = ROOT / "data" / "raw"
 DATA_URL = "https://data.alpaca.markets/v2/stocks/bars"
 KEY_VARS = ("ALPACA_API_KEY_ID", "ALPACA_API_SECRET_KEY")
 SYMBOL_PATTERN = re.compile(r"^[A-Z]{1,5}$")
+MAX_GAP_DAYS = 5  # longer than any weekend + holiday; matches validate_daily
 
 
 def load_dotenv(path: Path = ROOT / ".env") -> None:
@@ -105,17 +106,34 @@ def update_csv(session: requests.Session, symbol: str, raw_dir: Path, start: str
     """Download ``symbol`` from ``start`` and (re)write ``<raw_dir>/<SYMBOL>_1d.csv`` atomically.
 
     The full history is re-fetched each time because adjusted prices change
-    retroactively after every dividend or split.
+    retroactively after every dividend or split. If trading was halted for a
+    long stretch (e.g. a multi-year suspension), only the data after
+    the last such gap is kept: earlier prices describe a different situation.
     """
     df = fetch_bars(session, symbol, start, end, feed)
     if df.empty:
         return df
+    df, dropped = trim_before_last_gap(df)
+    if dropped:
+        print(f"  {symbol}: trading gap before {df['date'].iloc[0]}; dropped {dropped} earlier sessions")
     raw_dir.mkdir(parents=True, exist_ok=True)
     path = raw_dir / f"{symbol}_1d.csv"
     tmp = path.with_suffix(".csv.part")
     df.to_csv(tmp, index=False)
     tmp.replace(path)
     return df
+
+
+def trim_before_last_gap(df: pd.DataFrame, max_gap_days: int = MAX_GAP_DAYS) -> tuple[pd.DataFrame, int]:
+    """Keep only rows after the last gap longer than ``max_gap_days`` calendar days."""
+    dates = pd.to_datetime(df["date"])
+    gaps = dates.diff().dt.days
+    big = gaps[gaps > max_gap_days]
+    if big.empty:
+        return df, 0
+    first = big.index[-1]
+    pos = df.index.get_loc(first)
+    return df.iloc[pos:].reset_index(drop=True), pos
 
 
 def open_session() -> requests.Session:

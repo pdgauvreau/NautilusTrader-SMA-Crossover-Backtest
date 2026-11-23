@@ -49,6 +49,8 @@ from src.ml.walk_forward import pooled_auc  # noqa: E402
 from src.ml.walk_forward import walk_forward_predict  # noqa: E402
 from src.research import ResearchSettings  # noqa: E402
 
+MIN_OOS_DAYS = 60  # out-of-sample sessions needed to evaluate trading on a symbol
+
 VARIANTS = {
     "lgbm": ("LightGBM", MLConfig("lgbm")),
     "logreg": ("Logistic regression", MLConfig("logreg")),
@@ -191,6 +193,9 @@ def main(argv: list[str] | None = None) -> int:
     for symbol, df in frames.items():
         curves, stats = {}, {}
         main_probs = wf["lgbm"].predictions.query("symbol == @symbol")["prob"]
+        if len(main_probs) < MIN_OOS_DAYS:
+            print(f"{symbol}: only {len(main_probs)} out-of-sample predictions; skipping trading evaluation")
+            continue
         comp = compare_on_oos(df, symbol, main_probs, settings, args.enter, args.exit)
         curves["lgbm"], stats["lgbm"] = comp.ml.equity, comp.ml.stats
         for key in ("logreg", "shuffled"):
