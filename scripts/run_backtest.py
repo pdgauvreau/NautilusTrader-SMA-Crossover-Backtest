@@ -27,22 +27,14 @@ import matplotlib  # noqa: E402
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import pandas as pd  # noqa: E402
-from nautilus_trader.model import BarType  # noqa: E402
 
 from src.backtest import BacktestOutput  # noqa: E402
-from src.backtest import realized_pnls  # noqa: E402
-from src.backtest import run_backtest  # noqa: E402
-from src.data_loader import DEFAULT_BAR_TYPE  # noqa: E402
 from src.data_loader import TAKER_FEE  # noqa: E402
-from src.data_loader import btcusdt_instrument  # noqa: E402
 from src.data_loader import load_klines_csv  # noqa: E402
-from src.data_loader import to_nautilus_bars  # noqa: E402
 from src.data_loader import validate_daily  # noqa: E402
 from src.metrics import PerformanceStats  # noqa: E402
-from src.metrics import buy_and_hold_equity  # noqa: E402
-from src.metrics import compute_stats  # noqa: E402
+from src.pipeline import run_pipeline  # noqa: E402
 from src.strategies.sma_crossover import Signal  # noqa: E402
-from src.strategies.sma_crossover import SmaCrossoverConfig  # noqa: E402
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -78,23 +70,6 @@ def summary_table(strategy: PerformanceStats, bnh: PerformanceStats) -> str:
     lines = ["| Metric | SMA 10/50 crossover | Buy & hold BTC |", "|---|---:|---:|"]
     lines += [f"| {a} | {b} | {c} |" for a, b, c in rows]
     return "\n".join(lines)
-
-
-def trades_table(out: BacktestOutput) -> pd.DataFrame:
-    pos = out.positions
-    if pos.empty:
-        return pd.DataFrame(columns=["opened", "closed", "entry_px", "exit_px", "quantity", "net_pnl_usdt", "return"])
-    return pd.DataFrame(
-        {
-            "opened": pd.to_datetime(pos["ts_opened"], utc=True).dt.date,
-            "closed": pd.to_datetime(pos["ts_closed"], utc=True).dt.date,
-            "entry_px": pos["avg_px_open"].astype(float).round(2),
-            "exit_px": pos["avg_px_close"].astype(float).round(2),
-            "quantity": pos["peak_qty"].astype(str).str.split().str[0].astype(float),
-            "net_pnl_usdt": [round(p, 2) for p in realized_pnls(pos)],
-            "return": pos["realized_return"].astype(float).round(4),
-        },
-    ).sort_values("opened").reset_index(drop=True)
 
 
 def _markdown(df: pd.DataFrame) -> str:
@@ -167,38 +142,15 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     data_summary = validate_daily(df)
 
-    instrument = btcusdt_instrument()
-    bar_type = BarType.from_str(DEFAULT_BAR_TYPE)
-    bars = to_nautilus_bars(df, instrument, bar_type)
-    config = SmaCrossoverConfig(
-        bar_type=bar_type,
-        trade_size=args.trade_size,
-        fast_period=args.fast,
-        slow_period=args.slow,
-    )
+    result = run_pipeline(df, args.fast, args.slow, args.trade_size, args.capital)
+    out, trades = result.output, result.trades
+    strat_stats, bnh_stats = result.strategy_stats, result.buy_and_hold_stats
 
-    out = run_backtest(bars, instrument, config, starting_capital=args.capital)
-    if out.bars_seen != len(bars):
-        # Nautilus logs handler exceptions instead of raising; fail loudly here.
-        raise RuntimeError(f"Strategy saw {out.bars_seen} of {len(bars)} bars")
-
-    # Bar-close-stamped closes, aligned with the equity curve's timestamps.
-    closes = pd.Series(
-        [b.close.as_double() for b in bars],
-        index=pd.to_datetime([b.ts_event for b in bars], utc=True),
-        name="close",
-    )
-    equity = out.equity.reindex(closes.index).ffill().fillna(args.capital)
-    bnh = buy_and_hold_equity(closes, args.capital, float(TAKER_FEE))
-
-    pnls = realized_pnls(out.positions)
-    strat_stats = compute_stats(equity, pnls, args.capital)
-    bnh_pnl = float(bnh.iloc[-1]) - args.capital
-    bnh_stats = compute_stats(bnh, [bnh_pnl], args.capital)
-
-    trades = trades_table(out)
     trades.to_csv(args.report_dir / "trades.csv", index=False)
-    plot_equity(equity, bnh, closes, out, args.fast, args.slow, args.report_dir / "equity_curve.png")
+    plot_equity(
+        result.equity, result.buy_and_hold, result.closes, out,
+        args.fast, args.slow, args.report_dir / "equity_curve.png",
+    )
 
     table = summary_table(strat_stats, bnh_stats)
     period = f"{data_summary['first']} to {data_summary['last']}"
