@@ -144,6 +144,12 @@ def _as_utc(ts: str | pd.Timestamp) -> pd.Timestamp:
     return t.tz_localize("UTC") if t.tzinfo is None else t.tz_convert("UTC")
 
 
+def _check(condition: bool, message: str) -> None:
+    """Raise ``ValueError`` if a data check fails (unlike ``assert``, survives ``python -O``)."""
+    if not condition:
+        raise ValueError(message)
+
+
 def validate_daily(df: pd.DataFrame) -> dict[str, object]:
     """Validate a daily kline DataFrame and return a summary.
 
@@ -157,24 +163,24 @@ def validate_daily(df: pd.DataFrame) -> dict[str, object]:
         Summary dict with ``rows``, ``first``, ``last``, ``first_close``, ``last_close``.
 
     Raises:
-        AssertionError: If any check fails, with a message naming the offending rows.
+        ValueError: If any check fails, with a message naming the offending rows.
     """
-    assert len(df) > 0, "DataFrame is empty"
+    _check(len(df) > 0, "DataFrame is empty")
     idx = df.index
-    assert idx.is_unique, f"Duplicate timestamps: {idx[idx.duplicated()].tolist()}"
-    assert idx.is_monotonic_increasing, "Index is not sorted"
+    _check(idx.is_unique, f"Duplicate timestamps: {idx[idx.duplicated()].tolist()}")
+    _check(idx.is_monotonic_increasing, "Index is not sorted")
 
     steps = idx.to_series().diff().dropna()
     bad_steps = steps[steps != pd.Timedelta(days=1)]
-    assert bad_steps.empty, f"Gaps/irregular steps at: {bad_steps.index.tolist()}"
+    _check(bad_steps.empty, f"Gaps/irregular steps at: {bad_steps.index.tolist()}")
 
     ohlcv = df[["open", "high", "low", "close", "volume"]]
-    assert not ohlcv.isna().any().any(), f"NaNs in rows: {ohlcv[ohlcv.isna().any(axis=1)].index.tolist()}"
+    _check(not ohlcv.isna().any().any(), f"NaNs in rows: {ohlcv[ohlcv.isna().any(axis=1)].index.tolist()}")
 
     bad_high = df[df["high"] < df[["open", "close"]].max(axis=1)]
-    assert bad_high.empty, f"high < max(open, close) at: {bad_high.index.tolist()}"
+    _check(bad_high.empty, f"high < max(open, close) at: {bad_high.index.tolist()}")
     bad_low = df[df["low"] > df[["open", "close"]].min(axis=1)]
-    assert bad_low.empty, f"low > min(open, close) at: {bad_low.index.tolist()}"
+    _check(bad_low.empty, f"low > min(open, close) at: {bad_low.index.tolist()}")
 
     return {
         "rows": len(df),

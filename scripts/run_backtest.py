@@ -158,7 +158,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     args.report_dir.mkdir(parents=True, exist_ok=True)
 
-    df = load_klines_csv(args.raw_dir, start=args.start, end=args.end)
+    try:
+        df = load_klines_csv(args.raw_dir, start=args.start, end=args.end)
+    except FileNotFoundError:
+        df = pd.DataFrame()
     if df.empty:
         print(f"No data in {args.raw_dir}. Run scripts/download_data.py first.", file=sys.stderr)
         return 1
