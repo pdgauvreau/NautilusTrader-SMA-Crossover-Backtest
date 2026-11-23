@@ -14,6 +14,9 @@ Research options (all off by default, so the original rule is unchanged):
   edge is to execution timing.
 * ``trade_start_ns`` lets indicators warm up on earlier bars but blocks trading
   before that time (used by walk-forward test windows).
+* ``entry_fractions`` maps a bar's close timestamp (ns) to the fraction of cash
+  to invest if an entry happens on that bar (0 skips the entry). Used to test
+  sizing rules (volatility targeting, ML confidence) on top of the same timing.
 * ``enter_if_above_on_start`` joins an existing uptrend (fast > slow) on the
   first tradable bar instead of waiting for a fresh cross. Walk-forward folds
   use it so a trend spanning a fold boundary isn't silently skipped.
@@ -76,6 +79,7 @@ class SmaCrossoverConfig(StrategyConfig):
         execution_delay_bars: int = 0,
         trade_start_ns: int | None = None,
         enter_if_above_on_start: bool = False,
+        entry_fractions: dict[int, float] | None = None,
         **kwargs: object,
     ) -> None:
         if fast_period <= 0 or slow_period <= 0:
@@ -97,6 +101,9 @@ class SmaCrossoverConfig(StrategyConfig):
         self.execution_delay_bars = execution_delay_bars
         self.trade_start_ns = trade_start_ns
         self.enter_if_above_on_start = enter_if_above_on_start
+        if entry_fractions is not None and any(not 0 <= f <= 1 for f in entry_fractions.values()):
+            raise ValueError("entry_fractions values must be in [0, 1]")
+        self.entry_fractions = entry_fractions
 
 
 class SmaCrossover(Strategy):
@@ -153,6 +160,8 @@ class SmaCrossover(Strategy):
 
     def _entry_quantity(self, bar: Bar):
         fraction = self.config.position_fraction
+        if self.config.entry_fractions is not None:
+            fraction = self.config.entry_fractions.get(bar.ts_event, fraction if fraction is not None else 0.99)
         if fraction is None:
             return self.instrument.make_qty(self.config.trade_size)
         account = self.portfolio.account(bar.bar_type.instrument_id.venue)
