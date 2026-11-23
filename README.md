@@ -18,8 +18,65 @@ which you keep in a git-ignored `.env` file.
 Nothing in this repo places orders. The forward test is paper trading with no
 broker connection.
 
-> **Status:** the code, tests and dashboard are complete. ETF results will be added
-> here once data is downloaded with your Alpaca keys (see *Setup*).
+## Results (Jan 2016 to Nov 2026, 2,738 sessions)
+
+**Backtest, SMA 10/50 vs buy & hold** (99% of cash per entry, next-open fills, costs included):
+
+| ETF | Strategy return | Buy & hold | Strategy max DD | Buy & hold max DD | Strategy Sharpe | B&H Sharpe | Trades |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| SPY | +122% | +304% | **−15.7%** | −33.8% | 0.74 | 0.82 | 32 |
+| QQQ | +206% | +501% | **−21.7%** | −35.0% | 0.78 | 0.85 | 32 |
+| IWM | +54% | +167% | −35.1% | −41.3% | 0.34 | 0.51 | 35 |
+
+![SPY backtest](reports/SPY_equity_curve.png)
+
+**Stage 1: is the edge real?** ([full report](reports/research/summary.md))
+
+| | SPY | QQQ | IWM |
+|---|---:|---:|---:|
+| Walk-forward optimised, out-of-sample Sharpe | 0.68 | 0.57 | 0.13 |
+| Fixed 10/50, same period | **0.80** | 0.72 | 0.32 |
+| Buy & hold, same period | 0.85 | **0.89** | **0.47** |
+| SMA pairs (of 34) that were profitable | 100% | 100% | 100% |
+| 10/50 return beats random entry timing | 16% | 24% | 30% |
+
+**Stage 2: machine learning.** Out-of-sample AUC for the next 5-day direction:
+
+| Model | AUC (0.5 = coin flip) |
+|---|---:|
+| LightGBM | 0.500 |
+| Logistic regression | 0.500 |
+| Shuffled-label control | 0.496 |
+
+**Stage 2b: ML or volatility targeting as a size filter.** Every scheme lowered the
+average Sharpe (fixed 0.64 → 0.39–0.60). Model bet sizes were slightly *negatively*
+related to trade outcomes (Spearman ρ −0.17).
+
+### What this says
+
+- **On these ETFs the trend rule is a risk reducer, not a return enhancer.** It cut
+  the worst drawdown by about half on SPY and QQQ (e.g. it sat out most of the 2020
+  crash and the 2022 bear market). It paid for that with far lower total returns and
+  a slightly *lower* Sharpe than simply holding.
+- **The timing itself showed no skill.** Random entry schedules with the same number
+  of trades and the same holding lengths beat the 10/50 return 70–84% of the time.
+  Its benefit came from being in cash ~30% of the time, not from choosing *when*.
+  This is weaker evidence than the crypto version found (there, the rule beat ~92% of
+  random timings).
+- **Optimising and ML both made things worse**, again. The out-of-sample tests
+  caught it every time.
+- **The sample matters.** 2016–2026 was a strong bull market for US equities, which
+  is hard for any timing rule. It contains no prolonged bear market like 2000–02 or
+  2008, when trend filters have historically mattered most, and Alpaca's data
+  doesn't go back far enough to test that here.
+
+If the goal is fewer large drawdowns, the rule did deliver that. If the goal is
+beating buy & hold, nothing tested here did.
+
+![Dashboard](docs/app_screenshot.jpg)
+
+**Forward test:** started at the 2026-11-20 close. All three ETFs are in a downtrend
+(SMA10 below SMA50), so it is currently in cash.
 
 ## Setup
 

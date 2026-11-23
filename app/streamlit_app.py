@@ -100,6 +100,10 @@ def pct(x: float, signed: bool = True) -> str:
     return f"{x * 100:+.2f}%" if signed else f"{x * 100:.1f}%"
 
 
+def signed(x: float | None) -> str:
+    return "n/a" if x is None or (isinstance(x, float) and math.isnan(x)) else f"{x:+.2f}"
+
+
 def num(x: float) -> str:
     if x is None or (isinstance(x, float) and math.isnan(x)):
         return "n/a"
@@ -420,8 +424,8 @@ with tab_ml:
             corr = sz["bet_correlation"]
             st.markdown(
                 f"Did bigger bets go to better trades? Rank correlation between bet size and trade return "
-                f"over {sz['n_entries']} entries: **ML {corr['ml_size']:+.2f}**, shuffled control "
-                f"{corr['ml_size_shuffled']:+.2f}, vol target {corr['vol_target']:+.2f}.",
+                f"over {sz['n_entries']} entries: **ML {signed(corr['ml_size'])}**, shuffled control "
+                f"{signed(corr['ml_size_shuffled'])}, vol target {signed(corr['vol_target'])}.",
             )
             st.image(str(SIZING_DIR / "bets_vs_outcomes.png"), width="stretch")
             ssym = st.radio("Symbol", list(sz["symbols"]), horizontal=True, key="sizing_symbol")

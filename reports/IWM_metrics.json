@@ -1,0 +1,27 @@
+{
+  "symbol": "IWM",
+  "period": "2016-01-04 to 2026-11-20",
+  "parameters": {
+    "fast": 10,
+    "slow": 50,
+    "position_fraction": 0.99,
+    "starting_capital_usd": 100000.0,
+    "cost_per_side": 0.00030000000000000003
+  },
+  "strategy": {
+    "total_return": 0.5401948000000016,
+    "num_trades": 35,
+    "win_rate": 0.42857142857142855,
+    "max_drawdown": -0.35126830077195426,
+    "sharpe_ratio": 0.34083578480118476,
+    "final_equity": 154019.48000000016
+  },
+  "buy_and_hold": {
+    "total_return": 1.6716958034789795,
+    "num_trades": 1,
+    "win_rate": 1.0,
+    "max_drawdown": -0.41272785417332913,
+    "sharpe_ratio": 0.5138341794994031,
+    "final_equity": 267169.58034789795
+  }
+}

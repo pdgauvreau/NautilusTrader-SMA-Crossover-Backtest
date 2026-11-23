@@ -1,0 +1,250 @@
+{
+  "settings": {
+    "horizon_days": 20,
+    "vol_target": 0.15,
+    "cost_per_side": 0.00030000000000000003
+  },
+  "auc": {
+    "lgbm": 0.48997036708694514,
+    "logreg": 0.5064864066193854,
+    "shuffled": 0.4683122099641012
+  },
+  "symbols": {
+    "SPY": {
+      "oos_start": "2019-01-23",
+      "oos_end": "2026-11-20",
+      "stats": [
+        {
+          "scheme": "fixed",
+          "total_return": 0.9716384999999998,
+          "num_trades": 24,
+          "win_rate": 0.5416666666666666,
+          "max_drawdown": -0.15675907871349404,
+          "sharpe_ratio": 0.7984107827440835,
+          "final_equity": 197163.84999999998,
+          "avg_exposure": 0.7342849391812778
+        },
+        {
+          "scheme": "vol_target",
+          "total_return": 0.49707009999999974,
+          "num_trades": 24,
+          "win_rate": 0.5416666666666666,
+          "max_drawdown": -0.13090285619071618,
+          "sharpe_ratio": 0.6338341393057985,
+          "final_equity": 149707.00999999998,
+          "avg_exposure": 0.5607191316222253
+        },
+        {
+          "scheme": "ml_size",
+          "total_return": 0.6339178999999997,
+          "num_trades": 24,
+          "win_rate": 0.5416666666666666,
+          "max_drawdown": -0.13014200972997703,
+          "sharpe_ratio": 0.7240338251030509,
+          "final_equity": 163391.78999999998,
+          "avg_exposure": 0.5894148585328494
+        },
+        {
+          "scheme": "ml_gate",
+          "total_return": 0.5747945000000012,
+          "num_trades": 20,
+          "win_rate": 0.45,
+          "max_drawdown": -0.17530847785664028,
+          "sharpe_ratio": 0.6430519127303934,
+          "final_equity": 157479.45000000013,
+          "avg_exposure": 0.5979859288806092
+        },
+        {
+          "scheme": "ml_size_logreg",
+          "total_return": 0.8456333999999992,
+          "num_trades": 24,
+          "win_rate": 0.5416666666666666,
+          "max_drawdown": -0.15415281012335658,
+          "sharpe_ratio": 0.7875649026384196,
+          "final_equity": 184563.3399999999,
+          "avg_exposure": 0.6636422614179972
+        },
+        {
+          "scheme": "ml_size_shuffled",
+          "total_return": 0.6001620000000012,
+          "num_trades": 24,
+          "win_rate": 0.5416666666666666,
+          "max_drawdown": -0.14772084196945412,
+          "sharpe_ratio": 0.6985064286327587,
+          "final_equity": 160016.20000000013,
+          "avg_exposure": 0.5241687798701191
+        },
+        {
+          "scheme": "bnh",
+          "total_return": 1.9337258527110146,
+          "num_trades": 1,
+          "win_rate": 1.0,
+          "max_drawdown": -0.3379388816644995,
+          "sharpe_ratio": 0.8217620514350582,
+          "final_equity": 293372.58527110144,
+          "avg_exposure": 1.0
+        }
+      ]
+    },
+    "QQQ": {
+      "oos_start": "2019-01-22",
+      "oos_end": "2026-11-20",
+      "stats": [
+        {
+          "scheme": "fixed",
+          "total_return": 1.374510299999999,
+          "num_trades": 26,
+          "win_rate": 0.4230769230769231,
+          "max_drawdown": -0.21669660094690346,
+          "sharpe_ratio": 0.7875814634366585,
+          "final_equity": 237451.02999999988,
+          "avg_exposure": 0.6949762468957329
+        },
+        {
+          "scheme": "vol_target",
+          "total_return": 0.6027114000000002,
+          "num_trades": 26,
+          "win_rate": 0.4230769230769231,
+          "max_drawdown": -0.12848551557937038,
+          "sharpe_ratio": 0.6590339032828552,
+          "final_equity": 160271.14,
+          "avg_exposure": 0.43797890951330676
+        },
+        {
+          "scheme": "ml_size",
+          "total_return": 0.6516308999999996,
+          "num_trades": 26,
+          "win_rate": 0.4230769230769231,
+          "max_drawdown": -0.16863242890895402,
+          "sharpe_ratio": 0.5998835003543762,
+          "final_equity": 165163.08999999997,
+          "avg_exposure": 0.49616451155357444
+        },
+        {
+          "scheme": "ml_gate",
+          "total_return": 0.33737169999999983,
+          "num_trades": 17,
+          "win_rate": 0.4117647058823529,
+          "max_drawdown": -0.19993865127192845,
+          "sharpe_ratio": 0.37806908350553087,
+          "final_equity": 133737.16999999998,
+          "avg_exposure": 0.4083977527436353
+        },
+        {
+          "scheme": "ml_size_logreg",
+          "total_return": 1.0378319000000005,
+          "num_trades": 26,
+          "win_rate": 0.4230769230769231,
+          "max_drawdown": -0.15930355336371915,
+          "sharpe_ratio": 0.7502583088807501,
+          "final_equity": 203783.19000000006,
+          "avg_exposure": 0.576976187179645
+        },
+        {
+          "scheme": "ml_size_shuffled",
+          "total_return": 1.0270938999999997,
+          "num_trades": 26,
+          "win_rate": 0.4230769230769231,
+          "max_drawdown": -0.18726151259350754,
+          "sharpe_ratio": 0.7943203862877981,
+          "final_equity": 202709.38999999996,
+          "avg_exposure": 0.5307732435918637
+        },
+        {
+          "scheme": "bnh",
+          "total_return": 2.9496300304504652,
+          "num_trades": 1,
+          "win_rate": 1.0,
+          "max_drawdown": -0.3500255493101686,
+          "sharpe_ratio": 0.851090706821151,
+          "final_equity": 394963.0030450465,
+          "avg_exposure": 1.0
+        }
+      ]
+    },
+    "IWM": {
+      "oos_start": "2019-01-22",
+      "oos_end": "2026-11-20",
+      "stats": [
+        {
+          "scheme": "fixed",
+          "total_return": 0.39275250000000006,
+          "num_trades": 26,
+          "win_rate": 0.4230769230769231,
+          "max_drawdown": -0.351190864399623,
+          "sharpe_ratio": 0.34068528525367553,
+          "final_equity": 139275.25,
+          "avg_exposure": 0.6163642157845605
+        },
+        {
+          "scheme": "vol_target",
+          "total_return": 0.05997330000000067,
+          "num_trades": 26,
+          "win_rate": 0.4230769230769231,
+          "max_drawdown": -0.2538820899947096,
+          "sharpe_ratio": 0.12441001981304393,
+          "final_equity": 105997.33000000006,
+          "avg_exposure": 0.38838052785349797
+        },
+        {
+          "scheme": "ml_size",
+          "total_return": 0.1823979999999994,
+          "num_trades": 26,
+          "win_rate": 0.4230769230769231,
+          "max_drawdown": -0.311506494516811,
+          "sharpe_ratio": 0.2283915556824696,
+          "final_equity": 118239.79999999993,
+          "avg_exposure": 0.4918158077071363
+        },
+        {
+          "scheme": "ml_gate",
+          "total_return": 0.09909419999999991,
+          "num_trades": 22,
+          "win_rate": 0.36363636363636365,
+          "max_drawdown": -0.34775024876441274,
+          "sharpe_ratio": 0.15731007148763723,
+          "final_equity": 109909.42,
+          "avg_exposure": 0.4685757509371754
+        },
+        {
+          "scheme": "ml_size_logreg",
+          "total_return": 0.2213765999999997,
+          "num_trades": 26,
+          "win_rate": 0.4230769230769231,
+          "max_drawdown": -0.29342819932578024,
+          "sharpe_ratio": 0.2648408764402737,
+          "final_equity": 122137.65999999997,
+          "avg_exposure": 0.4634761448650959
+        },
+        {
+          "scheme": "ml_size_shuffled",
+          "total_return": 0.24438740000000014,
+          "num_trades": 26,
+          "win_rate": 0.4230769230769231,
+          "max_drawdown": -0.28798449416523775,
+          "sharpe_ratio": 0.28926550241134874,
+          "final_equity": 124438.74,
+          "avg_exposure": 0.4456983110283357
+        },
+        {
+          "scheme": "bnh",
+          "total_return": 0.9463879794774386,
+          "num_trades": 1,
+          "win_rate": 1.0,
+          "max_drawdown": -0.4118249951956955,
+          "sharpe_ratio": 0.46970368825495334,
+          "final_equity": 194638.79794774385,
+          "avg_exposure": 1.0
+        }
+      ]
+    }
+  },
+  "bet_correlation": {
+    "vol_target": -0.10614143619081912,
+    "ml_size": -0.17385464041897788,
+    "ml_gate": -0.23749314298539675,
+    "ml_size_logreg": -0.08117232940718762,
+    "ml_size_shuffled": -0.10825376735322635
+  },
+  "n_entries": 76
+}

@@ -1,0 +1,27 @@
+{
+  "symbol": "QQQ",
+  "period": "2016-01-04 to 2026-11-20",
+  "parameters": {
+    "fast": 10,
+    "slow": 50,
+    "position_fraction": 0.99,
+    "starting_capital_usd": 100000.0,
+    "cost_per_side": 0.00030000000000000003
+  },
+  "strategy": {
+    "total_return": 2.0578544,
+    "num_trades": 32,
+    "win_rate": 0.46875,
+    "max_drawdown": -0.21693061176881978,
+    "sharpe_ratio": 0.7846222802985241,
+    "final_equity": 305785.44
+  },
+  "buy_and_hold": {
+    "total_return": 5.010527226333435,
+    "num_trades": 1,
+    "win_rate": 1.0,
+    "max_drawdown": -0.3500255493101686,
+    "sharpe_ratio": 0.8496368265545096,
+    "final_equity": 601052.7226333435
+  }
+}

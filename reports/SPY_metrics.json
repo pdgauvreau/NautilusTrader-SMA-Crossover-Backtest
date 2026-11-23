@@ -1,0 +1,27 @@
+{
+  "symbol": "SPY",
+  "period": "2016-01-04 to 2026-11-20",
+  "parameters": {
+    "fast": 10,
+    "slow": 50,
+    "position_fraction": 0.99,
+    "starting_capital_usd": 100000.0,
+    "cost_per_side": 0.00030000000000000003
+  },
+  "strategy": {
+    "total_return": 1.217263500000001,
+    "num_trades": 32,
+    "win_rate": 0.5625,
+    "max_drawdown": -0.1569827011833027,
+    "sharpe_ratio": 0.7351558761811996,
+    "final_equity": 221726.3500000001
+  },
+  "buy_and_hold": {
+    "total_return": 3.039115526884002,
+    "num_trades": 1,
+    "win_rate": 1.0,
+    "max_drawdown": -0.33793888166449937,
+    "sharpe_ratio": 0.8220806878198249,
+    "final_equity": 403911.5526884002
+  }
+}

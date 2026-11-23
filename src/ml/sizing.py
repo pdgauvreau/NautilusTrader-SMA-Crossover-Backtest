@@ -164,10 +164,12 @@ def compare_sizing(
     stats = pd.DataFrame(rows).set_index("scheme")
 
     # Per-entry view: what each scheme bet on each of the fixed strategy's trades.
+    # Sizes are keyed by the *decision* bar (the close before the fill), so pair each
+    # trade with its entry signal rather than its fill date.
     trades = runs["fixed"].trades
+    entry_ts = [ts for ts, sig in runs["fixed"].output.signals if sig.value == "enter_long"]
     entry_rows = []
-    for opened, closed, ret in zip(trades["opened"], trades["closed"], trades["return"]):
-        ns = int(pd.Timestamp(opened, tz="UTC").value)
+    for ns, opened, closed, ret in zip(entry_ts, trades["opened"], trades["closed"], trades["return"]):
         row = {"opened": opened, "closed": closed, "trade_return": ret}
         for scheme in SCHEMES[1:]:
             m = maps[scheme]

@@ -141,7 +141,7 @@ def validate_daily(df: pd.DataFrame, max_gap_days: int = 5) -> dict[str, object]
     gaps = idx.to_series().diff().dt.days
     big = gaps[gaps > max_gap_days]
     _check(big.empty, f"Gaps longer than {max_gap_days} days before: {big.index.tolist()}")
-    weekend = idx[idx.dayofweek >= 5]
+    weekend = idx[idx.day_of_week >= 5]
     _check(len(weekend) == 0, f"Weekend sessions: {weekend.tolist()}")
     ohlcv = df[["open", "high", "low", "close", "volume"]]
     _check(not ohlcv.isna().any().any(), f"NaNs in rows: {ohlcv[ohlcv.isna().any(axis=1)].index.tolist()}")
