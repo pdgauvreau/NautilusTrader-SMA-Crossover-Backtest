@@ -67,7 +67,7 @@ The app has the following:
 
 - A symbol picker (BTC, ETH, SOL), sizing by % of cash or fixed quantity, and
   sliders for slippage and execution delay.
-- A **Stage 1 research** tab that presents the walk-forward, sensitivity,
+- **Stage 1 research** and **Stage 2 ML** tabs. The Stage 1 tab presents the walk-forward, sensitivity,
   random-baseline and robustness results described below.
 - Metric cards for return, drawdown and Sharpe, each with the gap versus buy & hold.
 - Linked equity, price/SMA and drawdown charts with buy and sell markers.
@@ -144,6 +144,68 @@ Method notes:
 - **Random baseline:** it reuses the strategy's own holding lengths, so it tests
   *timing* at equal exposure.
 
+## Stage 2: can machine learning do better?
+
+`scripts/run_ml.py` asks whether a model can predict the next **5-day direction**
+well enough to trade.
+
+1. **Features:** 17 backward-looking, scale-free features per day: returns over
+   1–60 days, volatility, SMA ratios, RSI, distance from 90-day high/low, a volume
+   z-score and range ([`src/ml/features.py`](src/ml/features.py)). A test confirms
+   that changing future prices never changes past features.
+2. **Model:** one model is trained across BTC, ETH and SOL using a **purged
+   walk-forward** ([`src/ml/walk_forward.py`](src/ml/walk_forward.py)). It trains
+   on 2 years, drops the last 5 days (their labels overlap the test window), then
+   predicts the next 6 months and rolls forward. Hyperparameters were fixed up
+   front, not tuned.
+3. **Trading:** the out-of-sample probabilities are traded through Nautilus by
+   `MLSignalStrategy`. It enters at P ≥ 0.52 and exits at P ≤ 0.48, invests 99% of
+   cash and pays 0.15% per side. The results are compared with SMA 10/50 and
+   buy & hold on the same days.
+4. **Controls:** logistic regression serves as a simple baseline, and LightGBM
+   trained on **shuffled labels** shows what pure noise looks like.
+
+**Prediction quality (out-of-sample AUC, 0.5 = coin flip):** LightGBM 0.507,
+logistic regression 0.516, shuffled-label control 0.497.
+
+**Trading results (out-of-sample, after costs):**
+
+| Symbol | Period | LightGBM | Logistic reg. | Shuffled control | SMA 10/50 | Buy & hold |
+|---|---|---:|---:|---:|---:|---:|
+| BTCUSDT | Jul 2020 to Dec 2025 | +162% | +210% | +92% | **+698%** | +854% |
+| ETHUSDT | Jul 2020 to Dec 2025 | −19% | +104% | +321% | **+1727%** | +1142% |
+| SOLUSDT | Feb 2021 to Dec 2025 | +88% | +234% | +131% | **+3831%** | +854% |
+
+![ML vs baselines, BTC](reports/ml/BTCUSDT_equity.png)
+
+### What this says
+
+- **The model has essentially no out-of-sample skill.** An AUC of 0.51 is barely
+  distinguishable from the shuffled-label control. The model's confidence is
+  meaningless: whether it predicts 35% or 80%, about 53% of cases go up (see
+  [`calibration.png`](reports/ml/calibration.png)).
+- **It loses to the 2-line SMA rule on every asset.** It trades 5× more often,
+  pays more in costs, and spends ~40% of the time out of the market during strong
+  bull runs. Changing the thresholds doesn't rescue it, and on ETH the shuffled
+  control did better.
+- **This is the expected result, and the reason to build the harness first.**
+  Daily price-and-volume features are public and heavily arbitraged. A model on
+  them alone is unlikely to find durable short-horizon edge. Without the
+  walk-forward, purging and controls, an in-sample version of this model would
+  have looked great.
+
+Directions that might plausibly help (not yet tested): longer horizons that
+align with the trend effect Stage 1 found, regime filters that *size* the SMA
+rule rather than replace it, and data that isn't pure price (funding rates,
+on-chain flows, order-book imbalance).
+
+```powershell
+python scripts/run_ml.py            # ~15 s, writes reports/ml/
+```
+
+The dashboard's **Stage 2 ML** tab shows the AUC per fold, calibration, feature
+importance, and equity curves for each symbol.
+
 ## How it works
 
 ```
@@ -155,6 +217,9 @@ src/metrics.py             →  return, drawdown, Sharpe, win rate, buy-and-hold
 src/pipeline.py            →  one call: bars → backtest → aligned curves, stats, trades
 src/research.py            →  sensitivity grid, walk-forward, random baseline, cost/delay grid
 scripts/run_research.py    →  Stage 1 research across symbols, writes reports/research/
+src/ml/                    →  features/labels, purged walk-forward training, evaluation
+src/strategies/ml_signal.py   long-only strategy driven by model probabilities
+scripts/run_ml.py          →  Stage 2 ML experiment, writes reports/ml/
 scripts/run_backtest.py    →  CLI: runs the pipeline, writes reports/
 app/streamlit_app.py       →  interactive dashboard on the same pipeline
 ```
@@ -196,7 +261,7 @@ python scripts/run_backtest.py      # prints the table, writes reports/
 ```
 
 ```powershell
-python -m pytest -q                 # 59 tests, ~6 s
+python -m pytest -q                 # 77 tests, ~10 s
 ```
 
 Useful flags for the runner: `--fast 20 --slow 100`, `--trade-size 0.25`, `--capital 50000`,
@@ -223,6 +288,9 @@ python -m src.data_loader
 - `tests/test_research.py`: execution delay, cash-based sizing, trade-start
   warmup, joining a trend at a fold start, multi-asset instruments, the
   random-schedule generator and walk-forward fold integrity.
+- `tests/test_ml.py`: no feature leakage, label maths, purge gap between train
+  and test, recovering a planted signal, finding nothing in noise or shuffled
+  labels, the ML decision rule, and an ML strategy run in Nautilus.
 - `tests/test_app.py`: the shared pipeline aligns and reconciles its curves, and the
   Streamlit app renders the default backtest headlessly via `AppTest`.
 
@@ -234,7 +302,7 @@ app/            Streamlit dashboard
 scripts/        download_data.py, run_backtest.py
 tests/          pytest suite
 data/raw/       downloaded CSVs (git-ignored)
-reports/        generated summary, metrics, trades and chart; research/ for Stage 1
+reports/        generated summary, metrics, trades and chart; research/ (Stage 1), ml/ (Stage 2)
 docs/           README images
 ```
 

@@ -34,6 +34,7 @@ from src.strategies.sma_crossover import Signal  # noqa: E402
 
 RAW_DIR = ROOT / "data" / "raw"
 RESEARCH_DIR = ROOT / "reports" / "research"
+ML_DIR = ROOT / "reports" / "ml"
 STRATEGY_COLOR = "#1f6feb"
 BNH_COLOR = "#8b949e"
 FAST_COLOR = "#d29922"
@@ -190,7 +191,7 @@ with st.sidebar:
         st.form_submit_button("Run backtest", type="primary", use_container_width=True)
     st.caption(f"Data: {first_day} → {last_day} ({len(data)} daily bars) from data.binance.vision")
 
-tab_bt, tab_research = st.tabs(["Backtest", "Stage 1 research"])
+tab_bt, tab_research, tab_ml = st.tabs(["Backtest", "Stage 1 research", "Stage 2 ML"])
 
 # --------------------------------------------------------------------- backtest tab
 def render_backtest() -> None:
@@ -345,3 +346,59 @@ with tab_research:
         st.dataframe(piv.style.format("{:.2f}").background_gradient(cmap="RdYlGn", vmin=0, vmax=1.5),
                      use_container_width=True)
         st.caption("Sharpe ratio of SMA 10/50 over the full period.")
+
+
+# --------------------------------------------------------------------------- ML tab
+with tab_ml:
+    ml_path = ML_DIR / "results.json"
+    if not ml_path.exists():
+        st.info("No ML results yet. Generate them with:")
+        st.code("python scripts/run_ml.py", language="bash")
+    else:
+        ml = json.loads(ml_path.read_text(encoding="utf-8"))
+        cfg = ml["settings"]
+        st.markdown(
+            f"Can a model predict whether the next **{cfg['horizon_days']} days** will be up? "
+            f"{len(cfg['features'])} backward-looking features, one model trained across BTC, ETH and SOL, "
+            f"purged walk-forward (train {cfg['train_days']} days, test {cfg['test_days']}). Every prediction "
+            "below is out-of-sample. Trades go through Nautilus at "
+            f"{cfg['cost_per_side'] * 100:.2f}% per side, entering at P ≥ {cfg['enter']} and exiting at "
+            f"P ≤ {cfg['exit']}.",
+        )
+
+        st.subheader("1. Does the model predict direction?")
+        names = {"lgbm": "LightGBM", "logreg": "Logistic regression", "shuffled": "Shuffled labels (control)"}
+        cols = st.columns(3)
+        for col, (key, label) in zip(cols, names.items()):
+            c = ml["classification"][key]
+            col.metric(f"{label}: AUC", f"{c['pooled_auc']:.3f}",
+                       delta=f"{c['pooled_auc'] - 0.5:+.3f} vs coin flip", delta_color="off")
+        st.image(str(ML_DIR / "fold_auc.png"), use_container_width=True)
+        left, right = st.columns(2)
+        left.image(str(ML_DIR / "calibration.png"), use_container_width=True)
+        right.image(str(ML_DIR / "feature_importance.png"), use_container_width=True)
+
+        st.subheader("2. Does it make money after costs?")
+        msym = st.radio("Symbol", list(ml["symbols"]), horizontal=True, key="ml_symbol")
+        r = ml["symbols"][msym]
+        labels = {"lgbm": "LightGBM", "logreg": "Logistic regression", "shuffled": "Shuffled control",
+                  "sma": "SMA 10/50", "bnh": "Buy & hold"}
+        table = pd.DataFrame(
+            {
+                labels[k]: [pct(v["total_return"]), pct(v["max_drawdown"]), num(v["sharpe_ratio"]),
+                            str(v["num_trades"])]
+                for k, v in r["stats"].items()
+            },
+            index=["Return", "Max drawdown", "Sharpe", "Trades"],
+        )
+        st.caption(f"Out-of-sample: {r['oos_start']} → {r['oos_end']}")
+        st.dataframe(table, use_container_width=True)
+        st.image(str(ML_DIR / f"{msym}_equity.png"), use_container_width=True)
+        with st.expander("Threshold sensitivity (LightGBM)"):
+            th = pd.DataFrame(r["thresholds"])
+            th["total_return"] = th["total_return"].map(pct)
+            th["sharpe_ratio"] = th["sharpe_ratio"].map(num)
+            th["max_drawdown"] = th["max_drawdown"].map(pct)
+            th["time_in_market"] = th["time_in_market"].map(lambda x: f"{x:.0%}")
+            st.dataframe(th, hide_index=True, use_container_width=True)
+

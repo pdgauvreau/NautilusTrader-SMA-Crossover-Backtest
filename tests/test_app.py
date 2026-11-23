@@ -49,4 +49,4 @@ def test_streamlit_app_renders_default_backtest() -> None:
     labels = {m.label: m.value for m in at.metric}
     assert labels["Trades"] == str(expected.strategy_stats.num_trades)
     assert labels["Total return"] == f"{expected.strategy_stats.total_return * 100:+.2f}%"
-    assert len(at.tabs) == 2
+    assert len(at.tabs) == 3
