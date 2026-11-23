@@ -38,10 +38,17 @@ RAW_DIR = Path(os.environ.get("ETF_RAW_DIR", ROOT / "data" / "raw"))  # override
 # Private results (including symbols from symbols.local.csv) live in the git-ignored
 # reports/portfolio/; show them when present, otherwise the committed public reports.
 _PRIVATE = ROOT / "reports" / "portfolio"
-REPORTS = _PRIVATE if (_PRIVATE / "research" / "results.json").exists() else ROOT / "reports"
-RESEARCH_DIR = REPORTS / "research"
-ML_DIR = REPORTS / "ml"
-SIZING_DIR = REPORTS / "ml_sizing"
+
+
+def _reports(sub: str) -> Path:
+    private = _PRIVATE / sub
+    return private if (private / "results.json").exists() else ROOT / "reports" / sub
+
+
+RESEARCH_DIR = _reports("research")
+ML_DIR = _reports("ml")
+SIZING_DIR = _reports("ml_sizing")
+COMPARE_DIR = _reports("compare")
 STRATEGY_COLOR = "#1f6feb"
 BNH_COLOR = "#8b949e"
 FAST_COLOR = "#d29922"
@@ -197,7 +204,9 @@ with st.sidebar:
         st.form_submit_button("Run backtest", type="primary", width="stretch")
     st.caption(f"Data: {first_day} → {last_day} ({len(data)} sessions) from Alpaca")
 
-tab_bt, tab_research, tab_ml = st.tabs(["Backtest", "Stage 1 research", "Stage 2 ML"])
+tab_bt, tab_compare, tab_research, tab_ml = st.tabs(
+    ["Backtest", "Strategy comparison", "Stage 1 research", "Stage 2 ML"],
+)
 
 # --------------------------------------------------------------------- backtest tab
 def render_backtest() -> None:
@@ -434,4 +443,64 @@ with tab_ml:
             st.image(str(SIZING_DIR / "bets_vs_outcomes.png"), width="stretch")
             ssym = st.radio("Symbol", list(sz["symbols"]), horizontal=True, key="sizing_symbol")
             st.image(str(SIZING_DIR / f"{ssym}_equity.png"), width="stretch")
+
+
+# --------------------------------------------------------------------- compare tab
+with tab_compare:
+    cmp_path = COMPARE_DIR / "results.json"
+    if not cmp_path.exists():
+        st.info("No comparison yet. Generate it with:")
+        st.code("python scripts/run_compare.py", language="bash")
+    else:
+        cmp = json.loads(cmp_path.read_text(encoding="utf-8"))
+        names = cmp["strategies"]
+        st.markdown(
+            "Eight classic rules, each run through the same engine, costs, sizing and next-open execution, "
+            "over the same sessions per symbol (after a one-year warm-up). Rules use their standard "
+            "published settings; nothing is tuned to this data.",
+        )
+        summ = pd.DataFrame(cmp["summary"]).set_index("strategy")
+        n = int(summ["symbols"].iloc[0])
+        view = pd.DataFrame({
+            "Avg rank": summ["avg_rank"].round(1),
+            "Avg Sharpe": summ["avg_sharpe"].round(2),
+            "Avg annual return": summ["avg_cagr"].map(lambda x: pct(x)),
+            "Avg max drawdown": summ["avg_max_drawdown"].map(lambda x: pct(x)),
+            "Time in market": summ["avg_time_in_market"].map(lambda x: f"{x:.0%}"),
+            "Beats holding (Sharpe)": summ["beats_bh_sharpe"].map(lambda x: f"{int(x)}/{n}"),
+            "Shallower worst drop": summ["shallower_dd_than_bh"].map(lambda x: f"{int(x)}/{n}"),
+        }, index=[names[k] for k in summ.index])
+        st.subheader(f"Overall ranking across {n} symbols")
+        st.dataframe(view, width="stretch")
+        stab = cmp["rank_stability"]
+        st.caption(
+            f"Ranking stability between the first and second half of each period: {stab:+.2f} "
+            "(1 = same order, 0 = unrelated). "
+            + ("Low: the 'winner' depends heavily on the period, so treat the ranking with caution."
+               if stab < 0.5 else "Fairly consistent across halves."),
+        )
+
+        left, right = st.columns(2)
+        left.image(str(COMPARE_DIR / "portfolio_equity.png"), width="stretch")
+        right.image(str(COMPARE_DIR / "risk_return.png"), width="stretch")
+
+        st.subheader("By symbol")
+        csym = st.selectbox("Symbol", list(cmp["symbols"]), key="compare_symbol")
+        info = cmp["symbols"][csym]
+        rows = pd.DataFrame(info["stats"]).set_index("strategy")
+        st.caption(f"{info['start']} → {info['end']}")
+        st.dataframe(
+            pd.DataFrame({
+                "Return": rows["total_return"].map(pct),
+                "Annual return": rows["cagr"].map(pct),
+                "Max drawdown": rows["max_drawdown"].map(pct),
+                "Sharpe": rows["sharpe_ratio"].map(num),
+                "Trades": rows["trades"].astype(int),
+                "Time in market": rows["time_in_market"].map(lambda x: f"{x:.0%}"),
+            }, index=[names[k] for k in rows.index]).sort_values("Sharpe", ascending=False),
+            width="stretch",
+        )
+        st.image(str(COMPARE_DIR / "sharpe_heatmap.png"), width="stretch")
+        if cmp.get("skipped"):
+            st.caption("Skipped for too little history: " + ", ".join(f"{s} ({n} sessions)" for s, n in cmp["skipped"]))
 

@@ -154,10 +154,73 @@ Other details:
 | `python scripts/run_backtest.py` | 10/50 backtest per symbol vs buy & hold | `reports/<SYMBOL>_*`, `reports/summary.md` |
 | `python scripts/run_research.py` | **Stage 1:** walk-forward, parameter sensitivity, random-entry baseline, cost/delay robustness | `reports/research/` |
 | `python scripts/run_ml.py` | **Stage 2:** can an ML model (LightGBM, logistic regression) time these symbols? | `reports/ml/` |
+| `python scripts/run_compare.py` | Eight classic rules vs buy & hold, same engine and costs | `reports/compare/` |
 | `python scripts/run_ml_sizing.py` | **Stage 2b:** ML or volatility targeting as a position-size filter | `reports/ml_sizing/` |
 | `streamlit run app/streamlit_app.py` | Interactive dashboard: run backtests and browse research | localhost:8501 |
 | `python scripts/forward_test.py` | **Stage 3:** daily forward test (paper trading) | `paper/forward_status.md` |
-| `python -m pytest -q` | 111 tests | |
+| `python -m pytest -q` | 127 tests | |
+
+## Strategy comparison: which rule works best?
+
+`scripts/run_compare.py` runs eight classic rules side by side, using their standard
+published settings (nothing is tuned on this data):
+
+| Rule | Idea |
+|---|---|
+| Buy & hold | Always invested: the baseline |
+| SMA 10/50 crossover | This project's original rule |
+| Golden cross (SMA 50/200) | The classic long-term trend signal |
+| Above 200-day SMA, monthly | Faber's tactical allocation rule, checked once a month |
+| 12-1 month momentum, monthly | Time-series momentum (Moskowitz, Ooi & Pedersen) |
+| Donchian breakout 55/20 | The Turtle traders' breakout system |
+| MACD 12/26/9 | A popular momentum oscillator |
+| RSI(2) mean reversion | Buy short, sharp dips in an uptrend (Connors) |
+
+All eight rules get identical treatment:
+
+- **Same engine:** each runs through the same Nautilus strategy
+  ([`target_position.py`](src/strategies/target_position.py)).
+- **Same costs and execution:** the same costs and the same next-open fills.
+- **Same days:** for each symbol, every rule trades the same sessions after a
+  one-year warm-up.
+
+The report also measures **ranking stability**: whether the order of the rules in
+the first half of the period matches the order in the second half. Picking "the
+best" of eight rules on one history is itself a form of overfitting, and this
+measure shows how much the winner owes to luck.
+
+**Results on the public symbols (2017–2026)**
+([full report](reports/compare/summary.md)):
+
+| Rule | Avg Sharpe | Avg annual return | Avg max drawdown | Beats holding (Sharpe) | Shallower worst drop |
+|---|---:|---:|---:|---:|---:|
+| Buy & hold | **0.68** | +16.4% | −50.1% | – | – |
+| SMA 10/50 crossover | 0.64 | +12.6% | −35.0% | 1/5 | 5/5 |
+| Above 200-day SMA, monthly | 0.61 | **+16.9%** | −39.1% | 2/5 | 4/5 |
+| Golden cross (SMA 50/200) | 0.60 | +15.1% | −41.2% | 3/5 | 4/5 |
+| Donchian breakout 55/20 | 0.51 | +8.6% | −30.6% | 1/5 | 5/5 |
+| 12-1 month momentum, monthly | 0.51 | +11.1% | −45.2% | 1/5 | 4/5 |
+| MACD 12/26/9 | 0.37 | +1.6% | −42.0% | 1/5 | 4/5 |
+| RSI(2) mean reversion | 0.35 | +3.8% | **−22.2%** | 1/5 | 5/5 |
+
+![Strategy comparison](reports/compare/portfolio_equity.png)
+
+What this says:
+
+- **No rule reliably beat simply holding.** Holding had the best average Sharpe.
+- **Every rule reduced the worst drop**, the slow trend filters most
+  efficiently: *Above 200-day SMA* and *golden cross* gave up little return for it.
+- **The ranking is unstable.** Ranking stability is only +0.22: the order of the
+  rules in one half of the decade says little about the next half. Any single
+  "winner" here is mostly the luck of the period.
+- **Rules that trade often did worst** (MACD, RSI(2)), even with low costs.
+
+The same comparison can include your private symbols, written to the git-ignored
+folder:
+
+```powershell
+python scripts/run_compare.py --report-dir reports/portfolio/compare
+```
 
 ## How it works
 
@@ -172,6 +235,9 @@ src/backtest.py             Nautilus BacktestEngine: USD cash account, fee model
 src/pipeline.py             one call: data -> backtest -> aligned equity curves, stats, trades
 src/metrics.py              return, max drawdown, Sharpe (252 sessions/yr), win rate, buy & hold
 src/research.py             sensitivity grid, walk-forward, random baseline, cost x delay grid
+src/strategies/signals.py   eight classic rules as daily long/cash targets (no look-ahead)
+src/strategies/target_position.py   trades any target signal with identical execution
+src/compare.py              runs all rules per symbol; ranking, stability, equal-weight portfolios
 src/ml/                     leakage-safe features, purged walk-forward training, evaluation, sizing
 src/paper/forward.py        forward test: replay the strategy from a fixed start date each day
 ```

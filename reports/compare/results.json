@@ -1,0 +1,656 @@
+{
+  "settings": {
+    "cost_per_side": 0.00030000000000000003,
+    "position_fraction": 0.99,
+    "warmup_sessions": 252
+  },
+  "strategies": {
+    "buy_and_hold": "Buy & hold (what you do now)",
+    "sma_10_50": "SMA 10/50 crossover",
+    "golden_cross": "Golden cross (SMA 50/200)",
+    "trend_200": "Above 200-day SMA, monthly",
+    "momentum_12_1": "12-1 month momentum, monthly",
+    "donchian_55_20": "Donchian breakout 55/20",
+    "macd": "MACD 12/26/9",
+    "rsi2_reversion": "RSI(2) mean reversion"
+  },
+  "summary": [
+    {
+      "strategy": "sma_10_50",
+      "avg_sharpe": 0.6369669148687641,
+      "median_sharpe": 0.7755288039575216,
+      "avg_cagr": 0.12576097540996312,
+      "avg_max_drawdown": -0.34976594387053644,
+      "avg_time_in_market": 0.6356654545454546,
+      "avg_trades": 29.0,
+      "avg_rank": 2.8,
+      "beats_bh_sharpe": 1,
+      "beats_bh_return": 1,
+      "shallower_dd_than_bh": 5,
+      "symbols": 5
+    },
+    {
+      "strategy": "buy_and_hold",
+      "avg_sharpe": 0.6751644626763366,
+      "median_sharpe": 0.8056226458584875,
+      "avg_cagr": 0.1638954327726769,
+      "avg_max_drawdown": -0.5005544884080451,
+      "avg_time_in_market": 1.0,
+      "avg_trades": 1.0,
+      "avg_rank": 3.0,
+      "beats_bh_sharpe": 0,
+      "beats_bh_return": 0,
+      "shallower_dd_than_bh": 0,
+      "symbols": 5
+    },
+    {
+      "strategy": "golden_cross",
+      "avg_sharpe": 0.5962931098497097,
+      "median_sharpe": 0.6438513949134176,
+      "avg_cagr": 0.1506281330379927,
+      "avg_max_drawdown": -0.4123595796672448,
+      "avg_time_in_market": 0.7435345454545456,
+      "avg_trades": 5.4,
+      "avg_rank": 3.6,
+      "beats_bh_sharpe": 3,
+      "beats_bh_return": 2,
+      "shallower_dd_than_bh": 4,
+      "symbols": 5
+    },
+    {
+      "strategy": "trend_200",
+      "avg_sharpe": 0.6108193192880045,
+      "median_sharpe": 0.4523337792324497,
+      "avg_cagr": 0.169002981263693,
+      "avg_max_drawdown": -0.3914018411455589,
+      "avg_time_in_market": 0.7358194046661304,
+      "avg_trades": 8.0,
+      "avg_rank": 3.8,
+      "beats_bh_sharpe": 2,
+      "beats_bh_return": 2,
+      "shallower_dd_than_bh": 4,
+      "symbols": 5
+    },
+    {
+      "strategy": "donchian_55_20",
+      "avg_sharpe": 0.5128296137935203,
+      "median_sharpe": 0.4946203464196991,
+      "avg_cagr": 0.08575235126410483,
+      "avg_max_drawdown": -0.30580615522203836,
+      "avg_time_in_market": 0.4740596621078037,
+      "avg_trades": 20.4,
+      "avg_rank": 5.0,
+      "beats_bh_sharpe": 1,
+      "beats_bh_return": 1,
+      "shallower_dd_than_bh": 5,
+      "symbols": 5
+    },
+    {
+      "strategy": "momentum_12_1",
+      "avg_sharpe": 0.5124951086697745,
+      "median_sharpe": 0.7345314624794899,
+      "avg_cagr": 0.11066837897933617,
+      "avg_max_drawdown": -0.4523217519026586,
+      "avg_time_in_market": 0.7722322123893806,
+      "avg_trades": 4.6,
+      "avg_rank": 5.2,
+      "beats_bh_sharpe": 1,
+      "beats_bh_return": 1,
+      "shallower_dd_than_bh": 4,
+      "symbols": 5
+    },
+    {
+      "strategy": "macd",
+      "avg_sharpe": 0.37027201779666424,
+      "median_sharpe": 0.5659651205078776,
+      "avg_cagr": 0.015955262906197552,
+      "avg_max_drawdown": -0.4196104410747202,
+      "avg_time_in_market": 0.5159012711182622,
+      "avg_trades": 91.8,
+      "avg_rank": 5.6,
+      "beats_bh_sharpe": 1,
+      "beats_bh_return": 0,
+      "shallower_dd_than_bh": 4,
+      "symbols": 5
+    },
+    {
+      "strategy": "rsi2_reversion",
+      "avg_sharpe": 0.3456009449100417,
+      "median_sharpe": 0.31632268437931754,
+      "avg_cagr": 0.037985006454215896,
+      "avg_max_drawdown": -0.22217971544566678,
+      "avg_time_in_market": 0.11102468222043442,
+      "avg_trades": 70.6,
+      "avg_rank": 7.0,
+      "beats_bh_sharpe": 1,
+      "beats_bh_return": 1,
+      "shallower_dd_than_bh": 5,
+      "symbols": 5
+    }
+  ],
+  "rank_stability": 0.21904761904761907,
+  "portfolio": {
+    "symbols": [
+      "SPY",
+      "QQQ",
+      "IWM",
+      "NVDA"
+    ],
+    "start": "2017-01-03",
+    "stats": {
+      "buy_and_hold": {
+        "total_return": 6.758697427986457,
+        "sharpe_ratio": 0.9498061110685708,
+        "max_drawdown": -0.3951251102605894
+      },
+      "sma_10_50": {
+        "total_return": 2.871983984805074,
+        "sharpe_ratio": 0.9281377079532779,
+        "max_drawdown": -0.22030860632084204
+      },
+      "golden_cross": {
+        "total_return": 4.430775305346752,
+        "sharpe_ratio": 0.947132859179424,
+        "max_drawdown": -0.3277034566947936
+      },
+      "trend_200": {
+        "total_return": 4.302879560846172,
+        "sharpe_ratio": 0.9812587682476696,
+        "max_drawdown": -0.265182948472773
+      },
+      "momentum_12_1": {
+        "total_return": 2.9040171523161735,
+        "sharpe_ratio": 0.7382298254981483,
+        "max_drawdown": -0.34831131123539005
+      },
+      "donchian_55_20": {
+        "total_return": 1.5569720258232844,
+        "sharpe_ratio": 0.804404945512115,
+        "max_drawdown": -0.20418421946128884
+      },
+      "macd": {
+        "total_return": 1.717498392622899,
+        "sharpe_ratio": 0.7661557522130437,
+        "max_drawdown": -0.2567590313467557
+      },
+      "rsi2_reversion": {
+        "total_return": 0.5594333073529114,
+        "sharpe_ratio": 0.5932306931820458,
+        "max_drawdown": -0.15026442420720143
+      }
+    }
+  },
+  "symbols": {
+    "SPY": {
+      "start": "2017-01-03",
+      "end": "2026-11-20",
+      "stats": [
+        {
+          "strategy": "buy_and_hold",
+          "total_return": 2.51386414,
+          "cagr": 0.13580218179817938,
+          "max_drawdown": -0.33564470407667857,
+          "sharpe_ratio": 0.8056226458584875,
+          "trades": 1,
+          "time_in_market": 1.0,
+          "sharpe_first_half": 0.9900482354991627,
+          "sharpe_second_half": 0.6204067948620717
+        },
+        {
+          "strategy": "sma_10_50",
+          "total_return": 1.1985609899999998,
+          "cagr": 0.08309820314210548,
+          "max_drawdown": -0.1568793615603351,
+          "sharpe_ratio": 0.7755288039575216,
+          "trades": 30,
+          "time_in_market": 0.7381335478680612,
+          "sharpe_first_half": 0.961856968586753,
+          "sharpe_second_half": 0.5959385400127625
+        },
+        {
+          "strategy": "golden_cross",
+          "total_return": 1.3255815049999997,
+          "cagr": 0.08927994343229817,
+          "max_drawdown": -0.33489262625455696,
+          "sharpe_ratio": 0.6438513949134176,
+          "trades": 5,
+          "time_in_market": 0.8378921962992759,
+          "sharpe_first_half": 0.7068807687653138,
+          "sharpe_second_half": 0.584269957538033
+        },
+        {
+          "strategy": "trend_200",
+          "total_return": 0.717605802,
+          "cagr": 0.056340837817212996,
+          "max_drawdown": -0.3606045505550506,
+          "sharpe_ratio": 0.44447551717763434,
+          "trades": 10,
+          "time_in_market": 0.8487530168946098,
+          "sharpe_first_half": 0.5354488107183941,
+          "sharpe_second_half": 0.344022423729343
+        },
+        {
+          "strategy": "momentum_12_1",
+          "total_return": 1.8585282119999995,
+          "cagr": 0.11229376732963559,
+          "max_drawdown": -0.3347810330742864,
+          "sharpe_ratio": 0.7345314624794899,
+          "trades": 4,
+          "time_in_market": 0.8748994368463395,
+          "sharpe_first_half": 0.832682991972236,
+          "sharpe_second_half": 0.6320493983845851
+        },
+        {
+          "strategy": "donchian_55_20",
+          "total_return": 0.48769149899999964,
+          "cagr": 0.04107063200873684,
+          "max_drawdown": -0.24229630528265989,
+          "sharpe_ratio": 0.4946203464196991,
+          "trades": 26,
+          "time_in_market": 0.5776347546259051,
+          "sharpe_first_half": 0.8570650111843162,
+          "sharpe_second_half": 0.11719796711246526
+        },
+        {
+          "strategy": "macd",
+          "total_return": 0.7383649669999985,
+          "cagr": 0.057627510931130166,
+          "max_drawdown": -0.15145815432994691,
+          "sharpe_ratio": 0.6003923344600312,
+          "trades": 108,
+          "time_in_market": 0.5116653258246179,
+          "sharpe_first_half": 0.8713323273545627,
+          "sharpe_second_half": 0.33913633162183593
+        },
+        {
+          "strategy": "rsi2_reversion",
+          "total_return": 0.19168393400000094,
+          "cagr": 0.017928248358900056,
+          "max_drawdown": -0.15179528558756472,
+          "sharpe_ratio": 0.31632268437931754,
+          "trades": 87,
+          "time_in_market": 0.1166532582461786,
+          "sharpe_first_half": 0.3247637936903824,
+          "sharpe_second_half": 0.3117022974010053
+        }
+      ]
+    },
+    "QQQ": {
+      "start": "2017-01-03",
+      "end": "2026-11-20",
+      "stats": [
+        {
+          "strategy": "buy_and_hold",
+          "total_return": 4.39334108,
+          "cagr": 0.1861971896839809,
+          "max_drawdown": -0.3490004809871118,
+          "sharpe_ratio": 0.862547581938269,
+          "trades": 1,
+          "time_in_market": 1.0,
+          "sharpe_first_half": 1.2395728029214539,
+          "sharpe_second_half": 0.5197249078070678
+        },
+        {
+          "strategy": "sma_10_50",
+          "total_return": 2.012925908999999,
+          "cagr": 0.11823843396731082,
+          "max_drawdown": -0.216821230825888,
+          "sharpe_ratio": 0.8211950816390834,
+          "trades": 30,
+          "time_in_market": 0.7188254223652454,
+          "sharpe_first_half": 1.1346981471986128,
+          "sharpe_second_half": 0.5252548175403705
+        },
+        {
+          "strategy": "golden_cross",
+          "total_return": 3.51765566,
+          "cagr": 0.1650922588119108,
+          "max_drawdown": -0.2832169370775698,
+          "sharpe_ratio": 0.8704395333631026,
+          "trades": 5,
+          "time_in_market": 0.8411102172164119,
+          "sharpe_first_half": 1.0892036583437916,
+          "sharpe_second_half": 0.637875395087291
+        },
+        {
+          "strategy": "trend_200",
+          "total_return": 2.040256903,
+          "cagr": 0.11926210982874696,
+          "max_drawdown": -0.2833080161934257,
+          "sharpe_ratio": 0.6831448522644227,
+          "trades": 7,
+          "time_in_market": 0.8487530168946098,
+          "sharpe_first_half": 0.9144368529188807,
+          "sharpe_second_half": 0.42298591346220066
+        },
+        {
+          "strategy": "momentum_12_1",
+          "total_return": 2.7924942440000007,
+          "cagr": 0.1446182562056313,
+          "max_drawdown": -0.2854082315247849,
+          "sharpe_ratio": 0.7492486966771519,
+          "trades": 4,
+          "time_in_market": 0.8748994368463395,
+          "sharpe_first_half": 1.0751216204751948,
+          "sharpe_second_half": 0.4094102337850361
+        },
+        {
+          "strategy": "donchian_55_20",
+          "total_return": 1.4670722330000006,
+          "cagr": 0.09581836002610467,
+          "max_drawdown": -0.16549924903015023,
+          "sharpe_ratio": 0.7836080226654092,
+          "trades": 21,
+          "time_in_market": 0.5736122284794851,
+          "sharpe_first_half": 0.7122707584686875,
+          "sharpe_second_half": 0.8585369122983659
+        },
+        {
+          "strategy": "macd",
+          "total_return": 0.9293477560000007,
+          "cagr": 0.06885738590880042,
+          "max_drawdown": -0.2457180067327407,
+          "sharpe_ratio": 0.5659651205078776,
+          "trades": 97,
+          "time_in_market": 0.5185036202735318,
+          "sharpe_first_half": 0.989570050087665,
+          "sharpe_second_half": 0.18095512009821715
+        },
+        {
+          "strategy": "rsi2_reversion",
+          "total_return": 0.3255634220000012,
+          "cagr": 0.02896941110125617,
+          "max_drawdown": -0.10961403996391861,
+          "sharpe_ratio": 0.3812588312463421,
+          "trades": 85,
+          "time_in_market": 0.12268704746580852,
+          "sharpe_first_half": 0.2720143635871023,
+          "sharpe_second_half": 0.4985719856025028
+        }
+      ]
+    },
+    "IWM": {
+      "start": "2017-01-03",
+      "end": "2026-11-20",
+      "stats": [
+        {
+          "strategy": "buy_and_hold",
+          "total_return": 1.116106459,
+          "cagr": 0.07891121367665965,
+          "max_drawdown": -0.4095467838272736,
+          "sharpe_ratio": 0.44743142878581244,
+          "trades": 1,
+          "time_in_market": 1.0,
+          "sharpe_first_half": 0.6042551577461146,
+          "sharpe_second_half": 0.30421967635581365
+        },
+        {
+          "strategy": "sma_10_50",
+          "total_return": 0.3706672849999999,
+          "cagr": 0.03246395778343514,
+          "max_drawdown": -0.35113620746521845,
+          "sharpe_ratio": 0.28572039757235695,
+          "trades": 34,
+          "time_in_market": 0.6343523732904264,
+          "sharpe_first_half": 0.30946498071878703,
+          "sharpe_second_half": 0.2611453613479409
+        },
+        {
+          "strategy": "golden_cross",
+          "total_return": -0.03175898200000016,
+          "cagr": -0.0032649069593129187,
+          "max_drawdown": -0.5006664084170762,
+          "sharpe_ratio": 0.06898723155464985,
+          "trades": 8,
+          "time_in_market": 0.7300884955752213,
+          "sharpe_first_half": 0.11465914524307509,
+          "sharpe_second_half": 0.04365215939736148
+        },
+        {
+          "strategy": "trend_200",
+          "total_return": 0.27016502499999984,
+          "cagr": 0.024527988190040206,
+          "max_drawdown": -0.3558029291957233,
+          "sharpe_ratio": 0.2337735601538638,
+          "trades": 13,
+          "time_in_market": 0.7055510860820595,
+          "sharpe_first_half": 0.5144639930434093,
+          "sharpe_second_half": -0.0421169652471105
+        },
+        {
+          "strategy": "momentum_12_1",
+          "total_return": -0.1357545240000002,
+          "cagr": -0.014674697605516984,
+          "max_drawdown": -0.5224691255346665,
+          "sharpe_ratio": 0.012052568296122152,
+          "trades": 8,
+          "time_in_market": 0.7135961383748994,
+          "sharpe_first_half": -0.06507537961315651,
+          "sharpe_second_half": 0.12685819647239444
+        },
+        {
+          "strategy": "donchian_55_20",
+          "total_return": 0.1276175850000003,
+          "cagr": 0.01224443431457023,
+          "max_drawdown": -0.2753380874204754,
+          "sharpe_ratio": 0.15919089621099286,
+          "trades": 24,
+          "time_in_market": 0.4440868865647627,
+          "sharpe_first_half": 0.2558118123533224,
+          "sharpe_second_half": 0.05615570726411911
+        },
+        {
+          "strategy": "macd",
+          "total_return": 0.9047048769999959,
+          "cagr": 0.06746605301070319,
+          "max_drawdown": -0.29214621254839823,
+          "sharpe_ratio": 0.513685569681791,
+          "trades": 99,
+          "time_in_market": 0.5080450522928399,
+          "sharpe_first_half": 0.8302230087103126,
+          "sharpe_second_half": 0.22638066037340387
+        },
+        {
+          "strategy": "rsi2_reversion",
+          "total_return": 0.15146916899999918,
+          "cagr": 0.014393615401666393,
+          "max_drawdown": -0.19974607513672038,
+          "sharpe_ratio": 0.23252851090021426,
+          "trades": 71,
+          "time_in_market": 0.11263073209975864,
+          "sharpe_first_half": -0.01014110297518857,
+          "sharpe_second_half": 0.5398518291097936
+        }
+      ]
+    },
+    "NVDA": {
+      "start": "2017-01-03",
+      "end": "2026-11-20",
+      "stats": [
+        {
+          "strategy": "buy_and_hold",
+          "total_return": 47.819954564999996,
+          "cagr": 0.4828606366149386,
+          "max_drawdown": -0.6627582581491611,
+          "sharpe_ratio": 1.045021943411546,
+          "trades": 1,
+          "time_in_market": 1.0,
+          "sharpe_first_half": 1.3284920806414002,
+          "sharpe_second_half": 0.8112757478307023
+        },
+        {
+          "strategy": "sma_10_50",
+          "total_return": 14.560016607,
+          "cagr": 0.32063463716364504,
+          "max_drawdown": -0.4608844230216831,
+          "sharpe_ratio": 0.9252740365007793,
+          "trades": 35,
+          "time_in_market": 0.6814159292035398,
+          "sharpe_first_half": 1.2376276070479384,
+          "sharpe_second_half": 0.6344438440888425
+        },
+        {
+          "strategy": "golden_cross",
+          "total_return": 48.924788226,
+          "cagr": 0.4862269040083931,
+          "max_drawdown": -0.4723888270427935,
+          "sharpe_ratio": 1.1401157190283548,
+          "trades": 4,
+          "time_in_market": 0.8181818181818182,
+          "sharpe_first_half": 1.5235804853554076,
+          "sharpe_second_half": 0.7951265463386898
+        },
+        {
+          "strategy": "trend_200",
+          "total_return": 68.487099175,
+          "cagr": 0.5368604717395082,
+          "max_drawdown": -0.44754240715452887,
+          "sharpe_ratio": 1.240368887611652,
+          "trades": 5,
+          "time_in_market": 0.7928399034593725,
+          "sharpe_first_half": 1.5652725754579329,
+          "sharpe_second_half": 0.9409018684372628
+        },
+        {
+          "strategy": "momentum_12_1",
+          "total_return": 13.335836625,
+          "cagr": 0.30971488068245234,
+          "max_drawdown": -0.5910743723585282,
+          "sharpe_ratio": 0.8265249911395359,
+          "trades": 4,
+          "time_in_market": 0.8153660498793243,
+          "sharpe_first_half": 1.2047139730777103,
+          "sharpe_second_half": 0.4970941584438581
+        },
+        {
+          "strategy": "donchian_55_20",
+          "total_return": 6.187583231999999,
+          "cagr": 0.22122275645668554,
+          "max_drawdown": -0.4634027536249671,
+          "sharpe_ratio": 0.788663584107107,
+          "trades": 24,
+          "time_in_market": 0.5293644408688657,
+          "sharpe_first_half": 0.8491917927440796,
+          "sharpe_second_half": 0.7565054971987022
+        },
+        {
+          "strategy": "macd",
+          "total_return": 4.809557222999987,
+          "cagr": 0.19516604075564126,
+          "max_drawdown": -0.5521259695345688,
+          "sharpe_ratio": 0.6973996515712404,
+          "trades": 100,
+          "time_in_market": 0.5164923572003218,
+          "sharpe_first_half": 0.8447538557236575,
+          "sharpe_second_half": 0.5637673949809306
+        },
+        {
+          "strategy": "rsi2_reversion",
+          "total_return": 1.7076977079999986,
+          "cagr": 0.10620096975025417,
+          "max_drawdown": -0.4297708380154478,
+          "sharpe_ratio": 0.574509880255735,
+          "trades": 90,
+          "time_in_market": 0.13435237329042637,
+          "sharpe_first_half": 0.6880145725421576,
+          "sharpe_second_half": 0.46549074017813097
+        }
+      ]
+    },
+    "SOFI": {
+      "start": "2021-11-30",
+      "end": "2026-11-20",
+      "stats": [
+        {
+          "strategy": "buy_and_hold",
+          "total_return": -0.281002015,
+          "cagr": -0.06429405791037401,
+          "max_drawdown": -0.745822215,
+          "sharpe_ratio": 0.21519871338756746,
+          "trades": 1,
+          "time_in_market": 1.0,
+          "sharpe_first_half": -0.16866920278626132,
+          "sharpe_second_half": 0.6977462129030971
+        },
+        {
+          "strategy": "sma_10_50",
+          "total_return": 0.42776263999999986,
+          "cagr": 0.0743696449933191,
+          "max_drawdown": -0.5631084964795576,
+          "sharpe_ratio": 0.37711625467407933,
+          "trades": 16,
+          "time_in_market": 0.4056,
+          "sharpe_first_half": -0.1883212123775355,
+          "sharpe_second_half": 0.9216485884222148
+        },
+        {
+          "strategy": "golden_cross",
+          "total_return": 0.08096495800000025,
+          "cagr": 0.015806465896674338,
+          "max_drawdown": -0.4706330995442274,
+          "sharpe_ratio": 0.2580716703890238,
+          "trades": 5,
+          "time_in_market": 0.4904,
+          "sharpe_first_half": -0.22620066623572668,
+          "sharpe_second_half": 0.7310345770049033
+        },
+        {
+          "strategy": "trend_200",
+          "total_return": 0.6640019080000001,
+          "cagr": 0.10802349874295669,
+          "max_drawdown": -0.509751302629066,
+          "sharpe_ratio": 0.4523337792324497,
+          "trades": 5,
+          "time_in_market": 0.4832,
+          "sharpe_first_half": -0.3996414954690824,
+          "sharpe_second_half": 1.221713707132137
+        },
+        {
+          "strategy": "momentum_12_1",
+          "total_return": 0.006917839000000203,
+          "cagr": 0.0013896882844786074,
+          "max_drawdown": -0.5278759970210267,
+          "sharpe_ratio": 0.24011782475657278,
+          "trades": 3,
+          "time_in_market": 0.5824,
+          "sharpe_first_half": -0.17557660842331596,
+          "sharpe_second_half": 0.6067598105141275
+        },
+        {
+          "strategy": "donchian_55_20",
+          "total_return": 0.32550129999999955,
+          "cagr": 0.05840557351442688,
+          "max_drawdown": -0.3824943807519393,
+          "sharpe_ratio": 0.3380652195643934,
+          "trades": 7,
+          "time_in_market": 0.2456,
+          "sharpe_first_half": -0.34686703832731824,
+          "sharpe_second_half": 0.9737555810468613
+        },
+        {
+          "strategy": "macd",
+          "total_return": -0.8407571389999992,
+          "cagr": -0.30934067607528726,
+          "max_drawdown": -0.8566038622279459,
+          "sharpe_ratio": -0.5260825872376188,
+          "trades": 55,
+          "time_in_market": 0.5248,
+          "sharpe_first_half": -0.9034599384528403,
+          "sharpe_second_half": -0.032372406342723314
+        },
+        {
+          "strategy": "rsi2_reversion",
+          "total_return": 0.11642548500000127,
+          "cagr": 0.022432787659002695,
+          "max_drawdown": -0.21997233852468245,
+          "sharpe_ratio": 0.22338481776859945,
+          "trades": 20,
+          "time_in_market": 0.0688,
+          "sharpe_first_half": -0.13218120618561627,
+          "sharpe_second_half": 0.5199954368725821
+        }
+      ]
+    }
+  },
+  "skipped": []
+}
