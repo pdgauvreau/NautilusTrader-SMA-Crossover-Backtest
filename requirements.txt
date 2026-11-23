@@ -5,3 +5,5 @@ pytest==9.2.0
 requests==2.34.2
 plotly==7.1.0
 streamlit==1.67.0
+lightgbm==4.7.0
+scikit-learn==1.9.1
