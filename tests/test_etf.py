@@ -229,3 +229,35 @@ def test_trim_before_last_trading_gap() -> None:
     assert dropped == 2 and out["date"].tolist() == ["2024-10-21", "2024-10-22"]
     weekend = pd.DataFrame({"date": ["2024-01-05", "2024-01-08"], "close": [1.0, 1.0]})
     assert trim_before_last_gap(weekend)[1] == 0
+
+
+# ------------------------------------------------------------ forward test: all rules
+def test_forward_rules_cover_every_rule_from_the_same_start() -> None:
+    from src.paper.forward import forward_rules
+    from src.paper.forward import rule_leaderboard
+    from src.strategies.signals import STRATEGIES
+
+    df = make_ohlcv(sine_closes(420, period=80))
+    sessions = df.index.strftime("%Y-%m-%d")
+    state = ForwardState.new(sessions[330], ["SPY"], capital_per_symbol=10_000)
+    rows = forward_rules(df, "SPY", state)
+    assert [r.rule for r in rows] == list(STRATEGIES)
+    for r in rows:
+        assert r.next_open_action in {"BUY", "SELL", "HOLD"}
+        assert r.long_now == (r.shares > 0)
+        if r.trades_since_start == 0 and r.next_open_action != "SELL":
+            assert r.equity == pytest.approx(10_000)
+    bh = next(r for r in rows if r.rule == "buy_and_hold")
+    assert bh.long_now and bh.trades_since_start == 1 and bh.next_open_action == "HOLD"
+    board = rule_leaderboard(rows, 10_000)
+    assert set(board.index) == set(STRATEGIES) and board["equity"].is_monotonic_decreasing
+
+
+def test_forward_rules_first_day_queues_entries_for_rules_already_long() -> None:
+    from src.paper.forward import forward_rules
+
+    df = make_ohlcv(np.linspace(300, 420, 300))  # steady uptrend: every trend rule wants to be long
+    state = ForwardState.new(df.index[-1].strftime("%Y-%m-%d"), ["SPY"])
+    rows = {r.rule: r for r in forward_rules(df, "SPY", state)}
+    for key in ("buy_and_hold", "sma_10_50", "golden_cross", "momentum_12_1"):
+        assert rows[key].target_long and rows[key].next_open_action == "BUY" and rows[key].shares == 0

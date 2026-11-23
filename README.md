@@ -157,8 +157,8 @@ Other details:
 | `python scripts/run_compare.py` | Eight classic rules vs buy & hold, same engine and costs | `reports/compare/` |
 | `python scripts/run_ml_sizing.py` | **Stage 2b:** ML or volatility targeting as a position-size filter | `reports/ml_sizing/` |
 | `streamlit run app/streamlit_app.py` | Interactive dashboard: run backtests and browse research | localhost:8501 |
-| `python scripts/forward_test.py` | **Stage 3:** daily forward test (paper trading) | `paper/forward_status.md` |
-| `python -m pytest -q` | 127 tests | |
+| `python scripts/forward_test.py` | **Stage 3:** daily forward test of all eight rules (paper trading) | `paper/forward_status.md` |
+| `python -m pytest -q` | 129 tests | |
 
 ## Strategy comparison: which rule works best?
 
@@ -268,11 +268,18 @@ python scripts/forward_test.py      # run once per trading day, after ~16:20 New
 - **First run:** fixes the start date (the latest completed session) in
   `paper/forward_state.json`.
 - **Every later run:** refreshes Alpaca data and replays the exact backtest
-  strategy, allowing trades only from the start date onward. Each symbol starts with
-  $10,000 of simulated cash.
-- **Output:** for each symbol, the trend, shares held, equity since the start, every
-  fill, and the **action due at the next open** (BUY, SELL or HOLD). This goes to
-  `paper/forward_status.md` and `paper/forward_journal.jsonl` (both git-ignored).
+  strategies, allowing trades only from the start date onward.
+- **All eight rules side by side:** every rule from the strategy comparison
+  (including buy & hold) runs on every symbol with its own $10,000 of simulated
+  cash.
+- **Output:** written to `paper/forward_status.md`, `paper/forward_rules.json` and
+  `paper/forward_journal.jsonl` (all git-ignored). The report has three parts:
+  - a **leaderboard** of the rules (total equity, return since the start,
+    positions held);
+  - a **symbol × rule matrix** showing which simulated orders each rule places at
+    the next open;
+  - the detailed SMA 10/50 table.
+- **Dashboard:** the **Strategy comparison** tab shows the live leaderboard.
 - **Restart-safe:** every run recomputes from the start date, so missed days or
   reboots don't matter.
 - **Starting over:** `--reset` begins a new forward test.

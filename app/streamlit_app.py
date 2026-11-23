@@ -454,6 +454,20 @@ with tab_compare:
     else:
         cmp = json.loads(cmp_path.read_text(encoding="utf-8"))
         names = cmp["strategies"]
+        fwd_path = ROOT / "paper" / "forward_rules.json"
+        if fwd_path.exists():
+            fwd = json.loads(fwd_path.read_text(encoding="utf-8"))
+            with st.expander(f"Live forward test (paper money, since the {fwd['start_session']} close)", expanded=True):
+                board = pd.DataFrame(fwd["leaderboard"]).set_index("rule")
+                st.dataframe(pd.DataFrame({
+                    "Equity (USD)": board["equity"].map(lambda x: f"{x:,.2f}"),
+                    "Since start": board["return_since_start"].map(pct),
+                    "Holding": [f"{int(h)}/{int(n)}" for h, n in zip(board["holding"], board["symbols"])],
+                    "Trades": board["trades"].astype(int),
+                    "Buys next open": board["buys_next_open"].astype(int),
+                    "Sells next open": board["sells_next_open"].astype(int),
+                }, index=[fwd["rule_names"][k] for k in board.index]), width="stretch")
+                st.caption(f"Updated {fwd['updated']} UTC by scripts/forward_test.py. Simulated only; no orders.")
         st.markdown(
             "Eight classic rules, each run through the same engine, costs, sizing and next-open execution, "
             "over the same sessions per symbol (after a one-year warm-up). Rules use their standard "
