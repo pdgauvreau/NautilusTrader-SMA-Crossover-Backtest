@@ -14,6 +14,9 @@ Research options (all off by default, so the original rule is unchanged):
   edge is to execution timing.
 * ``trade_start_ns`` lets indicators warm up on earlier bars but blocks trading
   before that time (used by walk-forward test windows).
+* ``enter_if_above_on_start`` joins an existing uptrend (fast > slow) on the
+  first tradable bar instead of waiting for a fresh cross. Walk-forward folds
+  use it so a trend spanning a fold boundary isn't silently skipped.
 
 The crossover decision is factored out into :func:`crossover_signal`, a pure
 function, so it can be unit-tested without spinning up an engine.
@@ -72,6 +75,7 @@ class SmaCrossoverConfig(StrategyConfig):
         position_fraction: float | None = None,
         execution_delay_bars: int = 0,
         trade_start_ns: int | None = None,
+        enter_if_above_on_start: bool = False,
         **kwargs: object,
     ) -> None:
         if fast_period <= 0 or slow_period <= 0:
@@ -92,6 +96,7 @@ class SmaCrossoverConfig(StrategyConfig):
         self.position_fraction = position_fraction
         self.execution_delay_bars = execution_delay_bars
         self.trade_start_ns = trade_start_ns
+        self.enter_if_above_on_start = enter_if_above_on_start
 
 
 class SmaCrossover(Strategy):
@@ -106,6 +111,7 @@ class SmaCrossover(Strategy):
         self.bars_seen = 0
         self.signals: list[tuple[int, Signal]] = []
         self._pending: tuple[Signal, int] | None = None  # (signal, bars until execution)
+        self._trading_started = False
 
     def on_start(self) -> None:
         bar_type = self.config.bar_type
@@ -127,7 +133,12 @@ class SmaCrossover(Strategy):
         self._prev_diff = diff
 
         start = self.config.trade_start_ns
-        if signal is not None and (start is None or bar.ts_event >= start):
+        tradable = start is None or bar.ts_event >= start
+        if tradable and not self._trading_started:
+            self._trading_started = True
+            if signal is None and diff > 0 and self.config.enter_if_above_on_start:
+                signal = Signal.ENTER_LONG
+        if signal is not None and tradable:
             # A newer signal replaces any one still waiting to execute.
             self._pending = (signal, self.config.execution_delay_bars)
 

@@ -68,6 +68,7 @@ def run_pipeline(
     execution_delay_bars: int = 0,
     cost_rate: float = float(TAKER_FEE),
     trade_start: pd.Timestamp | None = None,
+    enter_if_above_on_start: bool = False,
 ) -> PipelineResult:
     """Run the SMA crossover backtest on ``df`` and compute all report data.
 
@@ -87,6 +88,7 @@ def run_pipeline(
         position_fraction=position_fraction,
         execution_delay_bars=execution_delay_bars,
         trade_start_ns=start_ns,
+        enter_if_above_on_start=enter_if_above_on_start,
     )
 
     out = run_backtest(bars, instrument, config, starting_capital=capital, cost_rate=cost_rate)

@@ -22,6 +22,7 @@ from nautilus_trader.model import CurrencyPair
 from nautilus_trader.model import Money
 from nautilus_trader.model import OmsType
 from nautilus_trader.model import TraderId
+from nautilus_trader.trading import StrategyConfig
 
 from src.data_loader import TAKER_FEE
 from src.data_loader import fee_model
@@ -51,12 +52,13 @@ def _money_to_float(value: object) -> float:
 def run_backtest(
     bars: list[Bar],
     instrument: CurrencyPair,
-    config: SmaCrossoverConfig,
+    config: SmaCrossoverConfig | StrategyConfig,
     starting_capital: float = 100_000.0,
     log_level: LogLevel = LogLevel.WARNING,
     cost_rate: float | Decimal = TAKER_FEE,
+    strategy_cls: type = SmaCrossover,
 ) -> BacktestOutput:
-    """Run the SMA crossover strategy over ``bars`` and collect results.
+    """Run a strategy (SMA crossover by default) over ``bars`` and collect results.
 
     ``cost_rate`` is charged per side on every fill: the Binance taker fee by
     default, or fee + an estimated slippage for more conservative runs.
@@ -87,7 +89,7 @@ def run_backtest(
         )
         engine.add_instrument(instrument)
         engine.add_data(bars)
-        strategy = SmaCrossover(config)
+        strategy = strategy_cls(config)
         engine.add_strategy(strategy)
         engine.run()
 
