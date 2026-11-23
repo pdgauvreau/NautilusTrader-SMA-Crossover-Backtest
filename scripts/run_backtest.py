@@ -185,7 +185,7 @@ def main(argv: list[str] | None = None) -> int:
     if not results:
         return 1
 
-    rows = ["| ETF | Period | Strategy return | B&H return | Strategy max DD | B&H max DD | "
+    rows = ["| Symbol | Period | Strategy return | B&H return | Strategy max DD | B&H max DD | "
             "Strategy Sharpe | B&H Sharpe | Trades |", "|---|---|---:|---:|---:|---:|---:|---:|---:|"]
     for m in results:
         s, b = m["strategy"], m["buy_and_hold"]

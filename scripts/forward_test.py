@@ -1,4 +1,4 @@
-"""Daily forward test of the SMA 10/50 ETF strategy (paper trading, no broker, no orders).
+"""Daily forward test of the SMA 10/50 strategy on US ETFs and stocks (paper, no broker, no orders).
 
 Run once per trading day after the close (after ~16:20 New York time):
 
@@ -12,6 +12,9 @@ the start, and the action due at the next open. Each run is appended to
 ``paper/forward_journal.jsonl`` and summarised in ``paper/forward_status.md``.
 
     python scripts/forward_test.py --reset         # start a new forward test from the latest session
+
+Symbols added later (e.g. a new stock in ``SYMBOL_VENUES``) join the running
+forward test with their own start date; existing symbols keep theirs.
 """
 
 from __future__ import annotations
@@ -66,7 +69,7 @@ def refresh_data(symbols: list[str], raw_dir: Path) -> None:
 
 
 def status_table(rows) -> str:
-    head = ("| ETF | Last session | Close | SMA fast | SMA slow | Trend | Shares | Equity | "
+    head = ("| Symbol | Last session | Close | SMA fast | SMA slow | Trend | Shares | Equity | "
             "Since start | Trades | Next open |")
     lines = [head, "|---|---|---:|---:|---:|---|---:|---:|---:|---:|---|"]
     for r in rows:
@@ -100,6 +103,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Started a new forward test from the {latest} close ({state_path}).")
     else:
         state = ForwardState.load(state_path)
+        added = [s for s in args.symbols if s not in state.symbols]
+        if added:
+            last = {s: frames[s].index[-1].strftime("%Y-%m-%d") for s in added}
+            state = state.with_symbols(args.symbols, last)
+            state.save(state_path)
+            print(f"Added {', '.join(added)} to the forward test, starting at their latest close.")
 
     rows = [forward_status(frames[s], s, state) for s in state.symbols]
     total = sum(r.equity for r in rows)
@@ -115,7 +124,7 @@ def main(argv: list[str] | None = None) -> int:
         "# Forward test status",
         "",
         f"Updated {now}. Started at the {state.start_session} close with "
-        f"{state.capital_per_symbol:,.0f} simulated USD per ETF. Strategy: SMA {state.fast}/{state.slow}, "
+        f"{state.capital_per_symbol:,.0f} simulated USD per symbol. Strategy: SMA {state.fast}/{state.slow}, "
         f"long only, decide at the close, fill at the next open, {state.cost_rate * 100:.2f}% cost per side.",
         "",
         table,

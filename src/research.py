@@ -28,7 +28,7 @@ from src.backtest import run_backtest
 from src.data_loader import DEFAULT_COST_RATE
 from src.data_loader import bar_type_for
 from src.data_loader import bar_close_times
-from src.data_loader import etf_instrument
+from src.data_loader import equity_instrument
 from src.data_loader import open_quotes
 from src.data_loader import to_nautilus_bars
 from src.metrics import compute_stats
@@ -303,7 +303,7 @@ def random_entry_baseline(
     if entry_i is not None:  # still open at the end
         holds.append(max(1, len(close_ns) - 1 - entry_i))
 
-    instrument = etf_instrument(symbol)
+    instrument = equity_instrument(symbol)
     bar_type = bar_type_for(symbol)
     bars = to_nautilus_bars(df, instrument, bar_type)
     quotes = open_quotes(df, instrument)

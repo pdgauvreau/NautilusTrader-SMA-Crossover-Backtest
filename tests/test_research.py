@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 
 from src.data_loader import bar_type_for
-from src.data_loader import etf_instrument
+from src.data_loader import equity_instrument
 from src.pipeline import run_pipeline
 from src.research import ResearchSettings
 from src.research import param_grid
@@ -76,18 +76,19 @@ def test_config_rejects_bad_research_options(bar_type) -> None:
 
 
 # ------------------------------------------------------------------- instruments
-@pytest.mark.parametrize(("symbol", "venue"), [("SPY", "ARCA"), ("QQQ", "NASDAQ"), ("IWM", "ARCA")])
-def test_etf_instruments(symbol: str, venue: str) -> None:
-    inst = etf_instrument(symbol)
+@pytest.mark.parametrize(("symbol", "venue"), [("SPY", "ARCA"), ("QQQ", "NASDAQ"), ("IWM", "ARCA"),
+                                              ("NVDA", "NASDAQ"), ("SOFI", "NASDAQ")])
+def test_equity_instruments(symbol: str, venue: str) -> None:
+    inst = equity_instrument(symbol)
     assert str(inst.id) == f"{symbol}.{venue}"
-    assert inst.price_precision == 2 and inst.size_precision == 0
+    assert inst.price_precision == 4 and inst.size_precision == 0
     assert str(inst.quote_currency) == "USD"
     assert str(bar_type_for(symbol)) == f"{symbol}.{venue}-1-DAY-LAST-EXTERNAL"
 
 
 def test_unknown_symbol_raises() -> None:
     with pytest.raises(ValueError):
-        etf_instrument("BTCUSDT")
+        equity_instrument("BTCUSDT")
 
 
 def test_cost_rate_increases_fees() -> None:
@@ -141,7 +142,7 @@ def test_downloader_args() -> None:
 
     args = download_data.parse_args(["--symbols", "spy", "QQQ", "--start", "2018-01-01"])
     assert args.symbols == ["SPY", "QQQ"] and args.start == "2018-01-01"
-    assert download_data.parse_args([]).symbols == ["SPY", "QQQ", "IWM"]
+    assert download_data.parse_args([]).symbols == ["SPY", "QQQ", "IWM", "NVDA", "SOFI"]
     with pytest.raises(SystemExit):
         download_data.parse_args(["--symbols", "../etc"])
     with pytest.raises(SystemExit):

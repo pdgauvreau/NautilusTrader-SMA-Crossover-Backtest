@@ -1,0 +1,27 @@
+{
+  "symbol": "SOFI",
+  "period": "2020-11-30 to 2026-11-20",
+  "parameters": {
+    "fast": 10,
+    "slow": 50,
+    "position_fraction": 0.99,
+    "starting_capital_usd": 100000.0,
+    "cost_per_side": 0.00030000000000000003
+  },
+  "strategy": {
+    "total_return": 0.19975751100000028,
+    "num_trades": 18,
+    "win_rate": 0.2777777777777778,
+    "max_drawdown": -0.614374328874838,
+    "sharpe_ratio": 0.2753959914120488,
+    "final_equity": 119975.75110000002
+  },
+  "buy_and_hold": {
+    "total_return": 0.19012540512655374,
+    "num_trades": 1,
+    "win_rate": 1.0,
+    "max_drawdown": -0.8332040341349883,
+    "sharpe_ratio": 0.38040424887646324,
+    "final_equity": 119012.54051265538
+  }
+}

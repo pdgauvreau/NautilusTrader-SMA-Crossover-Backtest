@@ -14,7 +14,7 @@ from src.alpaca_data import drop_unfinished_session
 from src.data_loader import DEFAULT_HALF_SPREAD
 from src.data_loader import bar_close_times
 from src.data_loader import bar_open_times
-from src.data_loader import etf_instrument
+from src.data_loader import equity_instrument
 from src.data_loader import load_bars
 from src.data_loader import open_quotes
 from src.data_loader import validate_daily
@@ -77,7 +77,7 @@ def test_missing_file_and_unknown_symbol(tmp_path: Path) -> None:
 # -------------------------------------------------------------------- execution
 def test_open_quotes_bracket_the_open() -> None:
     df = make_ohlcv([400.0, 410.0, 420.0])
-    q = open_quotes(df, etf_instrument("SPY"))
+    q = open_quotes(df, equity_instrument("SPY"))
     assert len(q) == 3
     assert q[1].bid_price.as_double() == pytest.approx(400.0 * (1 - DEFAULT_HALF_SPREAD), abs=0.01)
     assert q[1].ask_price.as_double() == pytest.approx(400.0 * (1 + DEFAULT_HALF_SPREAD), abs=0.01)
@@ -105,7 +105,7 @@ def test_close_execution_mode_still_available() -> None:
 
 
 def test_affordable_qty_rounds_down() -> None:
-    inst = etf_instrument("SPY")
+    inst = equity_instrument("SPY")
     assert affordable_qty(inst, 99_000, 26_700).as_double() == 3  # 3.7 -> 3, never 4
     assert affordable_qty(inst, 1_000, 500).as_double() == 2
     assert affordable_qty(inst, 499, 500).as_double() == 0
@@ -186,3 +186,17 @@ def test_forward_first_day_joins_uptrend() -> None:
     state = ForwardState.new(df.index[-1].strftime("%Y-%m-%d"), ["SPY"])
     st = forward_status(df, "SPY", state)
     assert st.trend == "UP" and st.next_open_action == "BUY" and st.shares == 0
+
+
+def test_forward_state_adds_new_symbols_with_their_own_start(tmp_path: Path) -> None:
+    s = ForwardState.new("2025-06-30", ["SPY", "QQQ"])
+    s2 = s.with_symbols(["SPY", "QQQ", "NVDA"], {"NVDA": "2026-11-20"})
+    assert s2.symbols == ("SPY", "QQQ", "NVDA")
+    assert s2.start_for("SPY") == "2025-06-30" and s2.start_for("NVDA") == "2026-11-20"
+    s2.save(tmp_path / "state.json")
+    assert ForwardState.load(tmp_path / "state.json") == s2
+    # Old state files without "starts" still load.
+    (tmp_path / "old.json").write_text(
+        '{"start_session": "2025-06-30", "symbols": ["SPY"], "fast": 10, "slow": 50, '
+        '"capital_per_symbol": 10000.0, "cost_rate": 0.0003, "created": ""}', encoding="utf-8")
+    assert ForwardState.load(tmp_path / "old.json").start_for("SPY") == "2025-06-30"

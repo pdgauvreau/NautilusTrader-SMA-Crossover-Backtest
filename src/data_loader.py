@@ -1,10 +1,10 @@
-"""Load daily ETF bars (from Alpaca CSVs) and convert them to NautilusTrader v2 objects.
+"""Load daily US stock/ETF bars (from Alpaca CSVs) and convert them to NautilusTrader v2 objects.
 
 Pipeline::
 
     df = load_bars("data/raw", "SPY")              # one row per trading session
     summary = validate_daily(df)                   # integrity checks
-    instrument = etf_instrument("SPY")
+    instrument = equity_instrument("SPY")
     bars = to_nautilus_bars(df, instrument)        # list[Bar], stamped at the 16:00 ET close
     quotes = open_quotes(df, instrument)           # QuoteTicks at the 09:30 ET open
 
@@ -45,13 +45,19 @@ from nautilus_trader.model import Quantity
 from nautilus_trader.model import QuoteTick
 from nautilus_trader.model import Symbol
 
-# Listing venue for each supported ETF (matches Interactive Brokers' symbology in Nautilus).
-ETF_VENUES: dict[str, str] = {
+# Listing venue for each supported symbol (matches Interactive Brokers' symbology in Nautilus).
+# To add a US stock or ETF: add "TICKER": "VENUE" here, then run scripts/download_data.py.
+ETFS: dict[str, str] = {
     "SPY": "ARCA",
     "QQQ": "NASDAQ",
     "IWM": "ARCA",
 }
-DEFAULT_SYMBOLS: tuple[str, ...] = tuple(ETF_VENUES)
+STOCKS: dict[str, str] = {
+    "NVDA": "NASDAQ",  # NVIDIA
+    "SOFI": "NASDAQ",  # SoFi Technologies (listed June 2021, so shorter history)
+}
+SYMBOL_VENUES: dict[str, str] = {**ETFS, **STOCKS}
+DEFAULT_SYMBOLS: tuple[str, ...] = tuple(SYMBOL_VENUES)
 DEFAULT_SYMBOL = "SPY"
 
 # Execution cost per side, as a fraction of notional.
@@ -65,12 +71,12 @@ DEFAULT_HALF_SPREAD = 0.0001  # 1 bp each side; SPY/QQQ/IWM typically trade tigh
 
 NEW_YORK = "America/New_York"
 CSV_COLUMNS = ["date", "open", "high", "low", "close", "volume"]
-PRICE_PRECISION = 2
+PRICE_PRECISION = 4  # adjusted historical prices are fractional (e.g. NVDA ~$0.79 in 2016)
 
 
 def _check_symbol(symbol: str) -> str:
-    if symbol not in ETF_VENUES:
-        raise ValueError(f"Unsupported ETF {symbol!r}; add it to ETF_VENUES ({', '.join(ETF_VENUES)})")
+    if symbol not in SYMBOL_VENUES:
+        raise ValueError(f"Unsupported symbol {symbol!r}; add it to SYMBOL_VENUES ({', '.join(SYMBOL_VENUES)})")
     return symbol
 
 
@@ -182,15 +188,15 @@ def bar_open_times(df_or_index: pd.DataFrame | pd.DatetimeIndex) -> pd.DatetimeI
 
 
 # ----------------------------------------------------------------- instruments
-def etf_instrument(symbol: str = DEFAULT_SYMBOL) -> Equity:
-    """Nautilus ``Equity`` for a US ETF: USD, cent ticks, whole shares."""
-    venue = ETF_VENUES[_check_symbol(symbol)]
+def equity_instrument(symbol: str = DEFAULT_SYMBOL) -> Equity:
+    """Nautilus ``Equity`` for a US stock or ETF: USD, whole shares, 4-decimal prices (adjusted data)."""
+    venue = SYMBOL_VENUES[_check_symbol(symbol)]
     return Equity(
         instrument_id=InstrumentId.from_str(f"{symbol}.{venue}"),
         raw_symbol=Symbol(symbol),
         currency=Currency.from_str("USD"),
         price_precision=PRICE_PRECISION,
-        price_increment=Price(0.01, PRICE_PRECISION),
+        price_increment=Price(10**-PRICE_PRECISION, PRICE_PRECISION),
         lot_size=Quantity(1, 0),
         ts_event=0,
         ts_init=0,
@@ -198,10 +204,10 @@ def etf_instrument(symbol: str = DEFAULT_SYMBOL) -> Equity:
 
 
 def bar_type_for(symbol: str = DEFAULT_SYMBOL, interval: str = "1d") -> BarType:
-    """Nautilus ``BarType`` for an ETF, e.g. ``SPY.ARCA-1-DAY-LAST-EXTERNAL``."""
+    """Nautilus ``BarType`` for a symbol, e.g. ``SPY.ARCA-1-DAY-LAST-EXTERNAL``."""
     units = {"m": "MINUTE", "h": "HOUR", "d": "DAY"}
     step, unit = int(interval[:-1]), units[interval[-1]]
-    venue = ETF_VENUES[_check_symbol(symbol)]
+    venue = SYMBOL_VENUES[_check_symbol(symbol)]
     return BarType.from_str(f"{symbol}.{venue}-{step}-{unit}-LAST-EXTERNAL")
 
 
@@ -258,7 +264,7 @@ def open_quotes(
 
 
 def _main() -> None:
-    """Verify every downloaded ETF file (``python -m src.data_loader``)."""
+    """Verify every downloaded file (``python -m src.data_loader``)."""
     raw = Path(__file__).resolve().parents[1] / "data" / "raw"
     for symbol in DEFAULT_SYMBOLS:
         try:
@@ -267,7 +273,7 @@ def _main() -> None:
             print(f"{symbol}: {exc}")
             continue
         summary = validate_daily(df)
-        bars = to_nautilus_bars(df, etf_instrument(symbol))
+        bars = to_nautilus_bars(df, equity_instrument(symbol))
         print(f"{symbol}: {summary} -> {len(bars)} bars, first close stamped "
               f"{pd.Timestamp(bars[0].ts_event, unit='ns', tz='UTC').tz_convert(NEW_YORK)}")
 

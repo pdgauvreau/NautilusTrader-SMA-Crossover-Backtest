@@ -24,6 +24,8 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 from dataclasses import dataclass
+from dataclasses import field
+from dataclasses import replace
 from datetime import datetime
 from datetime import timezone
 from pathlib import Path
@@ -44,6 +46,17 @@ class ForwardState:
     capital_per_symbol: float = 10_000.0
     cost_rate: float = DEFAULT_COST_RATE
     created: str = ""
+    # Per-symbol start sessions for symbols added after the forward test began.
+    starts: dict[str, str] = field(default_factory=dict)
+
+    def start_for(self, symbol: str) -> str:
+        return self.starts.get(symbol, self.start_session)
+
+    def with_symbols(self, symbols, start_session: dict[str, str]) -> ForwardState:
+        """A copy that also tracks ``symbols`` (new ones start at their given session)."""
+        new = [s for s in symbols if s not in self.symbols]
+        starts = dict(self.starts) | {s: start_session[s] for s in new}
+        return replace(self, symbols=tuple(self.symbols) + tuple(new), starts=starts)
 
     def save(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -54,6 +67,7 @@ class ForwardState:
     def load(cls, path: Path) -> ForwardState:
         data = json.loads(path.read_text(encoding="utf-8"))
         data["symbols"] = tuple(data["symbols"])
+        data.setdefault("starts", {})
         return cls(**data)
 
     @classmethod
@@ -79,15 +93,16 @@ class SymbolStatus:
 
 
 def forward_status(df: pd.DataFrame, symbol: str, state: ForwardState) -> SymbolStatus:
-    """Replay the strategy on ``df`` with trading allowed from ``state.start_session``."""
+    """Replay the strategy on ``df`` with trading allowed from the symbol's start session."""
     sessions = df.index.strftime("%Y-%m-%d")
-    if state.start_session not in set(sessions):
-        later = [s for s in sessions if s >= state.start_session]
+    wanted = state.start_for(symbol)
+    if wanted not in set(sessions):
+        later = [s for s in sessions if s >= wanted]
         if not later:
-            raise ValueError(f"{symbol}: no data on or after the start session {state.start_session}")
+            raise ValueError(f"{symbol}: no data on or after the start session {wanted}")
         start_session = later[0]
     else:
-        start_session = state.start_session
+        start_session = wanted
     start_close = bar_close_times(df)[list(sessions).index(start_session)]
 
     res = run_pipeline(

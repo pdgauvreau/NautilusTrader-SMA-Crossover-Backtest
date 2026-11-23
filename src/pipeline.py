@@ -18,7 +18,7 @@ from src.data_loader import DEFAULT_COST_RATE
 from src.data_loader import DEFAULT_HALF_SPREAD
 from src.data_loader import DEFAULT_SYMBOL
 from src.data_loader import bar_type_for
-from src.data_loader import etf_instrument
+from src.data_loader import equity_instrument
 from src.data_loader import open_quotes
 from src.data_loader import to_nautilus_bars
 from src.metrics import PerformanceStats
@@ -88,7 +88,7 @@ def run_pipeline(
     happen before it, and the equity curves, buy & hold and stats all start at
     the first bar on or after it.
     """
-    instrument = etf_instrument(symbol)
+    instrument = equity_instrument(symbol)
     bar_type = bar_type_for(symbol, interval)
     bars = to_nautilus_bars(df, instrument, bar_type)
     quotes = open_quotes(df, instrument, half_spread) if execute_at_open else None

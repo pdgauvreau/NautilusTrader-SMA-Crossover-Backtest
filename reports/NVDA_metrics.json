@@ -1,0 +1,27 @@
+{
+  "symbol": "NVDA",
+  "period": "2016-01-04 to 2026-11-20",
+  "parameters": {
+    "fast": 10,
+    "slow": 50,
+    "position_fraction": 0.99,
+    "starting_capital_usd": 100000.0,
+    "cost_per_side": 0.00030000000000000003
+  },
+  "strategy": {
+    "total_return": 14.375297815,
+    "num_trades": 34,
+    "win_rate": 0.5,
+    "max_drawdown": -0.4608731257607521,
+    "sharpe_ratio": 0.882666925067814,
+    "final_equity": 1537529.7815
+  },
+  "buy_and_hold": {
+    "total_return": 158.26711259187942,
+    "num_trades": 1,
+    "win_rate": 1.0,
+    "max_drawdown": -0.6632560938910623,
+    "sharpe_ratio": 1.1918238814848112,
+    "final_equity": 15926711.259187942
+  }
+}

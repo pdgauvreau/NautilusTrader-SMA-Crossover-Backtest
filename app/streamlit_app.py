@@ -45,7 +45,7 @@ SLOW_COLOR = "#8250df"
 BUY_COLOR = "#1a7f37"
 SELL_COLOR = "#cf222e"
 
-st.set_page_config(page_title="ETF SMA Crossover Backtest", page_icon="📈", layout="wide")
+st.set_page_config(page_title="SMA Crossover Backtest", page_icon="📈", layout="wide")
 
 
 # --------------------------------------------------------------------------- data
@@ -154,9 +154,9 @@ def build_chart(res: dict, symbol: str, fast: int, slow: int, log_scale: bool) -
 
 
 # ------------------------------------------------------------------------- header
-st.title("📈 ETF SMA crossover backtest")
+st.title("📈 SMA crossover backtest: US ETFs and stocks")
 st.caption(
-    "Long-only fast/slow SMA crossover on US ETF daily bars (Alpaca, split/dividend-adjusted), simulated "
+    "Long-only fast/slow SMA crossover on US ETF and stock daily bars (Alpaca, split/dividend-adjusted), simulated "
     "with NautilusTrader 2.0: decide at the close, fill at the next open. Historical simulation only; "
     "no broker connection and no orders are placed.",
 )
@@ -354,7 +354,7 @@ with tab_ml:
         cfg = ml["settings"]
         st.markdown(
             f"Can a model predict whether the next **{cfg['horizon_days']} days** will be up? "
-            f"{len(cfg['features'])} backward-looking features, one model trained across the ETFs, "
+            f"{len(cfg['features'])} backward-looking features, one model trained across all symbols, "
             f"purged walk-forward (train {cfg['train_days']} days, test {cfg['test_days']}). Every prediction "
             "below is out-of-sample. Trades go through Nautilus at "
             f"{cfg['cost_per_side'] * 100:.2f}% per side, entering at P ≥ {cfg['enter']} and exiting at "

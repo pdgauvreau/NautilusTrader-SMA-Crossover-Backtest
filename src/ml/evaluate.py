@@ -14,7 +14,7 @@ from src.backtest import realized_pnls
 from src.backtest import run_backtest
 from src.data_loader import bar_type_for
 from src.data_loader import bar_close_times
-from src.data_loader import etf_instrument
+from src.data_loader import equity_instrument
 from src.data_loader import open_quotes
 from src.data_loader import to_nautilus_bars
 from src.metrics import buy_and_hold_equity
@@ -51,7 +51,7 @@ def backtest_probabilities(
 ) -> StrategyRun:
     """Run :class:`MLSignalStrategy` over the bars covered by ``probs`` (index = close time)."""
     window = _oos_slice(df, probs)
-    instrument = etf_instrument(symbol)
+    instrument = equity_instrument(symbol)
     bar_type = bar_type_for(symbol)
     bars = to_nautilus_bars(window, instrument, bar_type)
     quotes = open_quotes(window, instrument)

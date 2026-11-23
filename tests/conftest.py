@@ -23,7 +23,7 @@ from nautilus_trader.model import Equity
 
 from src.data_loader import bar_close_times
 from src.data_loader import bar_type_for
-from src.data_loader import etf_instrument
+from src.data_loader import equity_instrument
 from src.data_loader import to_nautilus_bars
 from src.strategies.sma_crossover import SmaCrossoverConfig
 
@@ -86,7 +86,7 @@ def money(value: object) -> float:
 
 @pytest.fixture(scope="session")
 def instrument() -> Equity:
-    return etf_instrument("SPY")
+    return equity_instrument("SPY")
 
 
 @pytest.fixture(scope="session")

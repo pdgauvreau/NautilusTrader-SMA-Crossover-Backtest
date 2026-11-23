@@ -1,14 +1,14 @@
-# ETF Trend Strategy Research (NautilusTrader v2)
+# US ETF & Stock Trend Strategy Research (NautilusTrader v2)
 
 A reproducible research and forward-testing project for a classic trend rule on
-US ETFs (**SPY, QQQ, IWM**), built on the
+US ETFs (**SPY, QQQ, IWM**) and stocks (**NVDA, SOFI**), built on the
 [NautilusTrader](https://nautilustrader.io) 2.0 release candidate.
 
 **Rule:** buy when the 10-day simple moving average crosses above the 50-day SMA,
 and sell to cash when it crosses back below. Long only, no leverage.
 
 **Execution model:** each decision is made on the daily close and **filled at the
-next session's open**, which is how a daily ETF strategy is actually traded.
+next session's open**, which is how a daily strategy on US listings is actually traded.
 Costs are a 1 bp half-spread at the open plus 0.03% per side.
 
 **Data:** daily bars from [Alpaca's Market Data API](https://docs.alpaca.markets/),
@@ -18,65 +18,76 @@ which you keep in a git-ignored `.env` file.
 Nothing in this repo places orders. The forward test is paper trading with no
 broker connection.
 
-## Results (Jan 2016 to Nov 2026, 2,738 sessions)
+## Results (Jan 2016 to Nov 2026)
 
 **Backtest, SMA 10/50 vs buy & hold** (99% of cash per entry, next-open fills, costs included):
 
-| ETF | Strategy return | Buy & hold | Strategy max DD | Buy & hold max DD | Strategy Sharpe | B&H Sharpe | Trades |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| SPY | +122% | +304% | **−15.7%** | −33.8% | 0.74 | 0.82 | 32 |
-| QQQ | +206% | +501% | **−21.7%** | −35.0% | 0.78 | 0.85 | 32 |
-| IWM | +54% | +167% | −35.1% | −41.3% | 0.34 | 0.51 | 35 |
+| Symbol | Type | Period | Strategy return | Buy & hold | Strategy max DD | B&H max DD | Strategy Sharpe | B&H Sharpe | Trades |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|
+| SPY | ETF | 2016–2026 | +122% | +304% | **−15.7%** | −33.8% | 0.74 | 0.82 | 32 |
+| QQQ | ETF | 2016–2026 | +206% | +501% | **−21.7%** | −35.0% | 0.78 | 0.85 | 32 |
+| IWM | ETF | 2016–2026 | +54% | +167% | −35.1% | −41.3% | 0.34 | 0.51 | 35 |
+| NVDA | Stock | 2016–2026 | +1,438% | +15,827% | **−46.1%** | −66.3% | 0.88 | 1.19 | 34 |
+| SOFI | Stock | 2020–2026* | +20% | +19% | **−61.4%** | −83.3% | 0.28 | 0.38 | 18 |
+
+\*SOFI's history before its June 2021 listing is its SPAC shell (IPOE).
 
 ![SPY backtest](reports/SPY_equity_curve.png)
 
 **Stage 1: is the edge real?** ([full report](reports/research/summary.md))
 
-| | SPY | QQQ | IWM |
-|---|---:|---:|---:|
-| Walk-forward optimised, out-of-sample Sharpe | 0.68 | 0.57 | 0.13 |
-| Fixed 10/50, same period | **0.80** | 0.72 | 0.32 |
-| Buy & hold, same period | 0.85 | **0.89** | **0.47** |
-| SMA pairs (of 34) that were profitable | 100% | 100% | 100% |
-| 10/50 return beats random entry timing | 16% | 24% | 30% |
+| | SPY | QQQ | IWM | NVDA | SOFI |
+|---|---:|---:|---:|---:|---:|
+| Walk-forward optimised, out-of-sample Sharpe | 0.68 | 0.57 | 0.13 | **1.03** | 0.59 |
+| Fixed 10/50, same period | **0.80** | 0.72 | 0.32 | 0.92 | **0.71** |
+| Buy & hold, same period | 0.85 | **0.89** | **0.47** | **1.14** | 0.66 |
+| SMA pairs (of 34) that were profitable | 100% | 100% | 100% | 100% | 47% |
+| 10/50 return beats random entry timing | 16% | 24% | 30% | 12% | 66% |
 
-**Stage 2: machine learning.** Out-of-sample AUC for the next 5-day direction:
+**Stage 2: machine learning.** Out-of-sample AUC for the next 5-day direction,
+pooled over all five symbols:
 
 | Model | AUC (0.5 = coin flip) |
 |---|---:|
-| LightGBM | 0.500 |
-| Logistic regression | 0.500 |
+| LightGBM | 0.491 |
+| Logistic regression | 0.485 |
 | Shuffled-label control | 0.496 |
 
 **Stage 2b: ML or volatility targeting as a size filter.** Every scheme lowered the
-average Sharpe (fixed 0.64 → 0.39–0.60). Model bet sizes were slightly *negatively*
-related to trade outcomes (Spearman ρ −0.17).
+average Sharpe (fixed 0.65 → 0.50–0.62). Model bet sizes showed no useful relation
+to trade outcomes (Spearman ρ −0.13).
 
 ### What this says
 
-- **On these ETFs the trend rule is a risk reducer, not a return enhancer.** It cut
-  the worst drawdown by about half on SPY and QQQ (e.g. it sat out most of the 2020
-  crash and the 2022 bear market). It paid for that with far lower total returns and
-  a slightly *lower* Sharpe than simply holding.
-- **The timing itself showed no skill.** Random entry schedules with the same number
-  of trades and the same holding lengths beat the 10/50 return 70–84% of the time.
-  Its benefit came from being in cash roughly a third of the time, not from choosing *when*.
-  This is weaker evidence than the crypto version found (there, the rule beat ~92% of
-  random timings).
+- **The trend rule is a risk reducer, not a return enhancer.** It cut the worst
+  drawdown on every symbol, by about half on SPY and QQQ: it sat out most of the
+  2020 crash and the 2022 bear market. It paid for that with far lower total returns
+  and a lower Sharpe than holding.
+- **On a big winner it gives up most of the gain.** NVDA rose about 159× in this
+  period. The rule captured about 15×, because every exit and re-entry during a
+  long, volatile uptrend costs part of the move.
+- **The timing itself showed no skill** on the ETFs or NVDA. Random entry schedules
+  with the same number of trades and the same holding lengths beat it 70–88% of the
+  time. Its benefit came from being in cash roughly a third of the time, not from
+  choosing *when*. SOFI is the exception (it beat 66% of random timings), but only
+  47% of parameter pairs were profitable there, so that result is fragile.
 - **Optimising and ML both made things worse**, again. The out-of-sample tests
   caught it every time.
 - **The sample matters.** 2016–2026 was a strong bull market for US equities, which
   is hard for any timing rule. It contains no prolonged bear market like 2000–02 or
   2008, when trend filters have historically mattered most, and Alpaca's data
   doesn't go back far enough to test that here.
+- **Stock results carry survivorship bias.** NVDA and SOFI were picked knowing
+  how they turned out; a fair stock test would have to choose names *before* the
+  period, including ones that later failed. ETFs avoid most of that problem.
 
 If the goal is fewer large drawdowns, the rule did deliver that. If the goal is
 beating buy & hold, nothing tested here did.
 
 ![Dashboard](docs/app_screenshot.jpg)
 
-**Forward test:** started at the 2026-11-20 close. All three ETFs are in a downtrend
-(SMA10 below SMA50), so it is currently in cash.
+**Forward test:** started at the 2026-11-20 close (NVDA and SOFI joined the same day).
+All five symbols are in a downtrend (SMA10 below SMA50), so it is currently in cash.
 
 ## Setup
 
@@ -101,24 +112,33 @@ pip install -r requirements.txt     # pins nautilus-trader==2.0.0rc6
 3. Download the data:
 
    ```powershell
-   python scripts/download_data.py     # SPY, QQQ, IWM from 2016 -> data/raw/<SYMBOL>_1d.csv
+   python scripts/download_data.py     # SPY, QQQ, IWM, NVDA, SOFI from 2016 -> data/raw/<SYMBOL>_1d.csv
    ```
 
    ```powershell
    python -m src.data_loader           # verify: sessions, gaps, OHLC sanity
    ```
 
+### Adding a stock or ETF
+
+1. Add it with its listing exchange to `STOCKS` (or `ETFS`) in
+   [`src/data_loader.py`](src/data_loader.py), e.g. `"AAPL": "NASDAQ"`.
+2. Run `python scripts/download_data.py --symbols AAPL`.
+
+Every script, the dashboard and the forward test then include it automatically. The
+forward test starts a newly added symbol at its latest close.
+
 ## What you can run
 
 | Command | What it does | Output |
 |---|---|---|
-| `python scripts/run_backtest.py` | 10/50 backtest per ETF vs buy & hold | `reports/<SYMBOL>_*`, `reports/summary.md` |
+| `python scripts/run_backtest.py` | 10/50 backtest per symbol vs buy & hold | `reports/<SYMBOL>_*`, `reports/summary.md` |
 | `python scripts/run_research.py` | **Stage 1:** walk-forward, parameter sensitivity, random-entry baseline, cost/delay robustness | `reports/research/` |
-| `python scripts/run_ml.py` | **Stage 2:** can an ML model (LightGBM, logistic regression) time ETFs? | `reports/ml/` |
+| `python scripts/run_ml.py` | **Stage 2:** can an ML model (LightGBM, logistic regression) time these symbols? | `reports/ml/` |
 | `python scripts/run_ml_sizing.py` | **Stage 2b:** ML or volatility targeting as a position-size filter | `reports/ml_sizing/` |
 | `streamlit run app/streamlit_app.py` | Interactive dashboard: run backtests and browse research | localhost:8501 |
 | `python scripts/forward_test.py` | **Stage 3:** daily forward test (paper trading) | `paper/forward_status.md` |
-| `python -m pytest -q` | 103 tests | |
+| `python -m pytest -q` | 108 tests | |
 
 ## How it works
 
@@ -163,9 +183,9 @@ python scripts/forward_test.py      # run once per trading day, after ~16:20 New
 - **First run:** fixes the start date (the latest completed session) in
   `paper/forward_state.json`.
 - **Every later run:** refreshes Alpaca data and replays the exact backtest
-  strategy, allowing trades only from the start date onward. Each ETF starts with
+  strategy, allowing trades only from the start date onward. Each symbol starts with
   $10,000 of simulated cash.
-- **Output:** for each ETF, the trend, shares held, equity since the start, every
+- **Output:** for each symbol, the trend, shares held, equity since the start, every
   fill, and the **action due at the next open** (BUY, SELL or HOLD). This goes to
   `paper/forward_status.md` and `paper/forward_journal.jsonl` (both git-ignored).
 - **Restart-safe:** every run recomputes from the start date, so missed days or
@@ -176,7 +196,7 @@ python scripts/forward_test.py      # run once per trading day, after ~16:20 New
   York), and catches up after sleep. Output is appended to `paper/forward_test.log`.
   Manage it in Task Scheduler or with `Get-ScheduledTask "ETF Forward Test"`.
 
-Because the strategy trades only a few times a year per ETF, the forward test needs
+Because the strategy trades only a few times a year per symbol, the forward test needs
 months to say much. Its job is to confirm that live data, signals and timing behave
 exactly as in the backtest before any real money is involved.
 

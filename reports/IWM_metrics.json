@@ -9,12 +9,12 @@
     "cost_per_side": 0.00030000000000000003
   },
   "strategy": {
-    "total_return": 0.5401948000000016,
+    "total_return": 0.539432971999998,
     "num_trades": 35,
     "win_rate": 0.42857142857142855,
-    "max_drawdown": -0.35126830077195426,
-    "sharpe_ratio": 0.34083578480118476,
-    "final_equity": 154019.48000000016
+    "max_drawdown": -0.35114869010540195,
+    "sharpe_ratio": 0.34053874932698464,
+    "final_equity": 153943.2971999998
   },
   "buy_and_hold": {
     "total_return": 1.6716958034789795,
