@@ -1,12 +1,12 @@
-"""Stage 2: can a machine-learning model time crypto better than a simple trend rule?
+"""Stage 2: can a machine-learning model time ETFs better than a simple trend rule?
 
 Pipeline:
-1. Build 17 backward-looking, scale-free features per day for BTC, ETH and SOL.
+1. Build 17 backward-looking, scale-free features per day for each ETF.
 2. Label each day by the sign of the next 5-day return.
 3. Purged walk-forward: train one pooled model on 2 years of all symbols, predict
    the next 6 months, roll forward. Every prediction is out-of-sample.
 4. Trade the probabilities through Nautilus (enter >= 0.52, exit <= 0.48, 99% of
-   cash, 0.15% cost per side) and compare with SMA 10/50 and buy & hold on the
+   cash, next-open fills, 0.03% cost per side) and compare with SMA 10/50 and buy & hold on the
    same days.
 
 Models: LightGBM (main), logistic regression (simple baseline), and LightGBM
@@ -27,6 +27,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")  # Windows consoles default to cp1252
 
 import matplotlib  # noqa: E402
 
@@ -35,7 +37,9 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
-from src.data_loader import load_klines_csv  # noqa: E402
+from src.data_loader import DEFAULT_COST_RATE  # noqa: E402
+from src.data_loader import DEFAULT_SYMBOLS  # noqa: E402
+from src.data_loader import load_bars  # noqa: E402
 from src.ml.evaluate import compare_on_oos  # noqa: E402
 from src.ml.evaluate import backtest_probabilities  # noqa: E402
 from src.ml.features import FEATURES  # noqa: E402
@@ -55,13 +59,13 @@ COLORS = {"lgbm": "#1f6feb", "logreg": "#8250df", "shuffled": "#cf222e", "sma": 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--symbols", nargs="+", default=["BTCUSDT", "ETHUSDT", "SOLUSDT"])
+    p.add_argument("--symbols", nargs="+", default=list(DEFAULT_SYMBOLS))
     p.add_argument("--raw-dir", type=Path, default=ROOT / "data" / "raw")
     p.add_argument("--report-dir", type=Path, default=ROOT / "reports" / "ml")
     p.add_argument("--horizon", type=int, default=5)
     p.add_argument("--enter", type=float, default=0.52)
     p.add_argument("--exit", type=float, default=0.48)
-    p.add_argument("--slippage", type=float, default=0.0005)
+    p.add_argument("--cost", type=float, default=DEFAULT_COST_RATE, help="cost per side (fraction)")
     return p.parse_args(argv)
 
 
@@ -87,8 +91,8 @@ def plot_equity(symbol: str, curves: dict[str, pd.Series], path: Path) -> None:
         ax.plot(eq.index, eq, color=COLORS[key], lw=1.0 if key in ("shuffled", "bnh") else 1.6,
                 ls="--" if key == "bnh" else ("-." if key == "shuffled" else "-"), label=labels[key])
     ax.set_yscale("log")
-    ax.set_ylabel("Equity (USDT, log scale)")
-    ax.set_title(f"{symbol}: out-of-sample equity, ML vs baselines (0.15% cost per side)")
+    ax.set_ylabel("Equity (USD, log scale)")
+    ax.set_title(f"{symbol}: out-of-sample equity, ML vs baselines (costs incl.)")
     ax.grid(alpha=0.25, which="both")
     ax.legend(frameon=False, loc="upper left", fontsize=8)
     fig.tight_layout()
@@ -151,13 +155,13 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     out = args.report_dir
     out.mkdir(parents=True, exist_ok=True)
-    settings = ResearchSettings(cost_rate=0.001 + args.slippage)
+    settings = ResearchSettings(cost_rate=args.cost)
     t0 = time.time()
 
     frames = {}
     for s in args.symbols:
         try:
-            frames[s] = load_klines_csv(args.raw_dir, symbol=s)
+            frames[s] = load_bars(args.raw_dir, s)
         except FileNotFoundError:
             print(f"{s}: no data, skipping", file=sys.stderr)
     if not frames:

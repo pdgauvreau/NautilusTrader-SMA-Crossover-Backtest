@@ -18,12 +18,13 @@ from src.ml.walk_forward import walk_forward_predict
 from src.strategies.ml_signal import MLSignalConfig
 from src.strategies.ml_signal import ml_decision
 from src.strategies.sma_crossover import Signal
+from tests.conftest import close_times
 from tests.conftest import make_ohlcv
 
 
 def random_walk(n: int, seed: int = 0) -> np.ndarray:
     rng = np.random.default_rng(seed)
-    return 20_000 * np.exp(np.cumsum(rng.normal(0, 0.03, n)))
+    return 300 * np.exp(np.cumsum(rng.normal(0, 0.012, n)))
 
 
 # ------------------------------------------------------------------------ features
@@ -41,7 +42,7 @@ def test_features_are_indexed_by_bar_close_and_ready_after_warmup() -> None:
     df = make_ohlcv(random_walk(300))
     f = make_features(df)
     assert list(f.columns) == FEATURES
-    assert (f.index == df.index + pd.Timedelta(days=1)).all()
+    assert (f.index == close_times(df)).all()
     assert f.iloc[WARMUP_BARS:].notna().all().all()
     assert f.iloc[: WARMUP_BARS - 1]["close_sma200"].isna().all()
 
@@ -56,9 +57,9 @@ def test_labels_are_forward_returns() -> None:
 
 
 def test_build_dataset_stacks_symbols_without_warmup_rows() -> None:
-    frames = {"BTCUSDT": make_ohlcv(random_walk(300, 1)), "ETHUSDT": make_ohlcv(random_walk(260, 2))}
+    frames = {"SPY": make_ohlcv(random_walk(300, 1)), "QQQ": make_ohlcv(random_walk(260, 2))}
     ds = build_dataset(frames, horizon=5)
-    assert ds.groupby("symbol").size().to_dict() == {"BTCUSDT": 100, "ETHUSDT": 60}
+    assert ds.groupby("symbol").size().to_dict() == {"QQQ": 60, "SPY": 100}
     assert ds[FEATURES].notna().all().all()
     assert ds.index.is_monotonic_increasing
 
@@ -72,7 +73,7 @@ def synthetic_dataset(n_days: int = 1200, signal: float = 0.0, seed: int = 0) ->
     logit = signal * x["ret_1"] + rng.normal(size=n_days)
     x["fwd_ret"] = logit * 0.01
     x["label"] = (logit > 0).astype(float)
-    x.insert(0, "symbol", "BTCUSDT")
+    x.insert(0, "symbol", "SPY")
     return x
 
 
@@ -133,10 +134,10 @@ def test_ml_config_validates_thresholds(bar_type) -> None:
 
 
 def test_ml_strategy_trades_on_probabilities() -> None:
-    df = make_ohlcv(np.linspace(30_000, 40_000, 60))
-    close_ts = df.index + pd.Timedelta(days=1)
+    df = make_ohlcv(np.linspace(300, 400, 60))
+    close_ts = close_times(df)
     probs = pd.Series(np.where(np.arange(60) < 30, 0.7, 0.3), index=close_ts)
-    run = backtest_probabilities(df, "BTCUSDT", probs)
+    run = backtest_probabilities(df, "SPY", probs)
     assert run.stats["num_trades"] == 1
     assert run.num_signals == 2  # enter on bar 0, exit on bar 30
     # Long through a steady rise, flat afterwards: profit, and flat equity in the second half.

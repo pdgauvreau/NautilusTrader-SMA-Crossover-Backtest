@@ -1,16 +1,17 @@
-"""Interactive dashboard for the SMA crossover backtests and Stage 1 research.
+"""Interactive dashboard for the ETF SMA crossover backtests and research.
 
 Run from the repo root:
     streamlit run app/streamlit_app.py
 
 The "Backtest" tab runs a fresh NautilusTrader backtest on the locally downloaded
-Binance archive data (data/raw/). The "Research" tab shows the output of
+Alpaca daily ETF data (data/raw/). The "Research" tab shows the output of
 scripts/run_research.py. Nothing here connects to an exchange.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import math
 import sys
 from datetime import date
@@ -25,14 +26,15 @@ import plotly.graph_objects as go  # noqa: E402
 import streamlit as st  # noqa: E402
 from plotly.subplots import make_subplots  # noqa: E402
 
-from src.data_loader import SPOT_SPECS  # noqa: E402
-from src.data_loader import TAKER_FEE  # noqa: E402
-from src.data_loader import load_klines_csv  # noqa: E402
+from src.data_loader import DEFAULT_COST_RATE  # noqa: E402
+from src.data_loader import DEFAULT_SYMBOLS  # noqa: E402
+from src.data_loader import csv_path  # noqa: E402
+from src.data_loader import load_bars  # noqa: E402
 from src.data_loader import validate_daily  # noqa: E402
 from src.pipeline import run_pipeline  # noqa: E402
 from src.strategies.sma_crossover import Signal  # noqa: E402
 
-RAW_DIR = ROOT / "data" / "raw"
+RAW_DIR = Path(os.environ.get("ETF_RAW_DIR", ROOT / "data" / "raw"))  # override for demos/tests
 RESEARCH_DIR = ROOT / "reports" / "research"
 ML_DIR = ROOT / "reports" / "ml"
 SIZING_DIR = ROOT / "reports" / "ml_sizing"
@@ -43,19 +45,19 @@ SLOW_COLOR = "#8250df"
 BUY_COLOR = "#1a7f37"
 SELL_COLOR = "#cf222e"
 
-st.set_page_config(page_title="Crypto SMA Crossover Backtest", page_icon="📈", layout="wide")
+st.set_page_config(page_title="ETF SMA Crossover Backtest", page_icon="📈", layout="wide")
 
 
 # --------------------------------------------------------------------------- data
 def available_symbols() -> list[str]:
-    return [s for s in SPOT_SPECS if any(RAW_DIR.glob(f"{s}-1d-*.csv"))]
+    return [s for s in DEFAULT_SYMBOLS if csv_path(RAW_DIR, s).exists()]
 
 
 @st.cache_data(show_spinner=False)
 def load_data(symbol: str) -> pd.DataFrame:
-    df = load_klines_csv(RAW_DIR, symbol=symbol)
+    df = load_bars(RAW_DIR, symbol)
     validate_daily(df)
-    return df[["open", "high", "low", "close", "volume", "close_time"]]
+    return df[["open", "high", "low", "close", "volume"]]
 
 
 @st.cache_data(show_spinner=False)
@@ -110,7 +112,7 @@ def build_chart(res: dict, symbol: str, fast: int, slow: int, log_scale: bool) -
     fig = make_subplots(
         rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.04,
         row_heights=[0.45, 0.35, 0.20],
-        subplot_titles=("Equity (USDT)", f"{symbol} close & SMAs", "Drawdown (%)"),
+        subplot_titles=("Equity (USD)", f"{symbol} close & SMAs (adjusted)", "Drawdown (%)"),
     )
     fig.add_trace(go.Scatter(x=equity.index, y=equity, name=f"SMA {fast}/{slow} strategy",
                              line=dict(color=STRATEGY_COLOR, width=2)), row=1, col=1)
@@ -148,17 +150,18 @@ def build_chart(res: dict, symbol: str, fast: int, slow: int, log_scale: bool) -
 
 
 # ------------------------------------------------------------------------- header
-st.title("📈 Crypto SMA crossover backtest")
+st.title("📈 ETF SMA crossover backtest")
 st.caption(
-    "Long-only fast/slow SMA crossover on Binance spot daily bars, simulated with "
-    "NautilusTrader 2.0. Historical simulation only. No exchange connection and no orders are placed.",
+    "Long-only fast/slow SMA crossover on US ETF daily bars (Alpaca, split/dividend-adjusted), simulated "
+    "with NautilusTrader 2.0: decide at the close, fill at the next open. Historical simulation only; "
+    "no broker connection and no orders are placed.",
 )
 
 symbols = available_symbols()
 if not symbols:
     st.error(f"No kline data in `{RAW_DIR}`.")
-    st.code("python scripts/download_data.py --symbols BTCUSDT ETHUSDT SOLUSDT --start-year 2018 --end-year 2025",
-            language="bash")
+    st.code("python scripts/download_data.py", language="bash")
+    st.caption("Needs free Alpaca API keys in a .env file; see .env.example.")
     st.stop()
 
 # ----------------------------------------------------------------------- sidebar
@@ -174,23 +177,17 @@ with st.sidebar:
         c1, c2 = st.columns(2)
         fast = c1.number_input("Fast SMA", min_value=2, max_value=200, value=10, step=1)
         slow = c2.number_input("Slow SMA", min_value=3, max_value=300, value=50, step=1)
-        sizing = st.radio("Position sizing", ["% of cash", "Fixed quantity"], horizontal=True)
-        if sizing == "% of cash":
-            fraction_pct = st.slider("Cash per entry (%)", 10, 100, 99)
-            trade_size, position_fraction = 1.0, fraction_pct / 100
-        else:
-            trade_size = st.number_input(f"Quantity ({symbol[:-4]})", min_value=0.001, value=0.5,
-                                         step=0.1, format="%.3f")
-            position_fraction = None
-        capital = st.number_input("Starting capital (USDT)", min_value=1_000, max_value=10_000_000,
+        fraction_pct = st.slider("Cash per entry (%)", 10, 100, 99)
+        trade_size, position_fraction = 1.0, fraction_pct / 100
+        capital = st.number_input("Starting capital (USD)", min_value=1_000, max_value=10_000_000,
                                   value=100_000, step=10_000)
-        slippage_bps = st.slider("Slippage per side (bps)", 0, 50, 0,
-                                 help=f"Added to the {float(TAKER_FEE) * 100:.1f}% taker fee")
+        cost_bps = st.slider("Cost per side (bps)", 0, 30, int(round(DEFAULT_COST_RATE * 1e4)),
+                             help="Commission + slippage, on top of a 1 bp half-spread at the open")
         delay = st.slider("Execution delay (bars)", 0, 5, 0,
-                          help="Act on each signal this many bars late")
+                          help="Act on each signal this many sessions late")
         log_scale = st.checkbox("Log-scale price and equity", value=False)
-        st.form_submit_button("Run backtest", type="primary", use_container_width=True)
-    st.caption(f"Data: {first_day} → {last_day} ({len(data)} daily bars) from data.binance.vision")
+        st.form_submit_button("Run backtest", type="primary", width="stretch")
+    st.caption(f"Data: {first_day} → {last_day} ({len(data)} sessions) from Alpaca")
 
 tab_bt, tab_research, tab_ml = st.tabs(["Backtest", "Stage 1 research", "Stage 2 ML"])
 
@@ -209,20 +206,12 @@ def render_backtest() -> None:
         st.error(f"The selected range has {n_bars} bars; it needs more than {slow} to warm up the slow SMA.")
         return
 
-    cost_rate = float(TAKER_FEE) + slippage_bps / 10_000
+    cost_rate = cost_bps / 10_000
     with st.spinner("Running NautilusTrader backtest…"):
         res = backtest(symbol, start, end, int(fast), int(slow), float(trade_size), position_fraction,
                        float(capital), cost_rate, int(delay))
 
     s, b = res["strategy"], res["bnh_stats"]
-    if position_fraction is None:
-        max_notional = float(trade_size) * float(res["closes"].max())
-        if max_notional > capital:
-            st.warning(
-                f"{trade_size} {symbol[:-4]} can cost up to {max_notional:,.0f} USDT in this period, more than "
-                f"the starting capital. Entries the account can't afford are denied by Nautilus's risk engine "
-                f"(the signal is skipped).",
-            )
 
     cols = st.columns(5)
     cols[0].metric("Total return", pct(s["total_return"]),
@@ -235,7 +224,7 @@ def render_backtest() -> None:
     cols[3].metric("Trades", f"{s['num_trades']}")
     cols[4].metric("Win rate", pct(s["win_rate"], signed=False))
 
-    st.plotly_chart(build_chart(res, symbol, int(fast), int(slow), log_scale), use_container_width=True)
+    st.plotly_chart(build_chart(res, symbol, int(fast), int(slow), log_scale), width="stretch")
 
     left, right = st.columns([3, 2])
     with left:
@@ -244,14 +233,14 @@ def render_backtest() -> None:
             st.info("No completed trades in this window.")
         else:
             st.dataframe(
-                res["trades"], hide_index=True, use_container_width=True,
+                res["trades"], hide_index=True, width="stretch",
                 column_config={
                     "opened": "Opened (UTC)",
                     "closed": "Closed (UTC)",
                     "entry_px": st.column_config.NumberColumn("Entry", format="%.4f"),
                     "exit_px": st.column_config.NumberColumn("Exit", format="%.4f"),
                     "quantity": st.column_config.NumberColumn("Qty", format="%.4f"),
-                    "net_pnl_usdt": st.column_config.NumberColumn("Net PnL (USDT)", format="%.2f"),
+                    "net_pnl_usd": st.column_config.NumberColumn("Net PnL (USD)", format="%.2f"),
                     "return": st.column_config.NumberColumn("Return", format="percent"),
                 },
             )
@@ -267,19 +256,19 @@ def render_backtest() -> None:
                     "Buy & hold": [pct(b["total_return"]), f"{b['final_equity']:,.2f}", str(b["num_trades"]),
                                    pct(b["win_rate"], False), pct(b["max_drawdown"]), num(b["sharpe_ratio"])],
                 },
-                index=["Total return", "Final equity (USDT)", "Trades", "Win rate", "Max drawdown", "Sharpe"],
+                index=["Total return", "Final equity (USD)", "Trades", "Win rate", "Max drawdown", "Sharpe"],
             ),
-            use_container_width=True,
+            width="stretch",
         )
 
     with st.expander("How this is simulated, and why it isn't proof"):
         st.markdown(
             f"""
-- **Costs:** market orders fill at the close of the signal bar (plus any delay) as a taker,
-  at {cost_rate * 100:.3f}% per side (fee + slippage).
+- **Execution:** each signal is decided on the daily close and filled at the next session's
+  open (plus any delay), paying a 1 bp half-spread and {cost_rate * 100:.3f}% per side.
 - **No look-ahead:** each daily bar is stamped at its close, so a signal only uses closed days.
-- **Sizing:** "% of cash" invests that share of free USDT on each entry. "Fixed quantity" buys
-  the same coin amount every time, so exposure differs from buy & hold.
+- **Sizing:** each entry invests the chosen share of free cash in whole shares.
+  Buy & hold invests everything at the first close.
 - **Warmup:** no trades until the slow SMA has {int(slow)} bars.
 - **Overfitting:** tuning parameters on this screen until the numbers look good is exactly
   what the walk-forward test in the Research tab guards against.
@@ -300,7 +289,8 @@ with tab_research:
         results = {r["symbol"]: r for r in json.loads(results_path.read_text(encoding="utf-8"))}
         st.markdown(
             "Each question below tests whether the SMA rule's edge is real or just a lucky backtest. "
-            "Costs are 0.10% fee + 0.05% slippage per side, with 99% of cash per entry.",
+            "Every run decides at the close, fills at the next open (1 bp half-spread) and pays 0.03% per side, "
+            "investing 99% of cash per entry.",
         )
         rsym = st.radio("Symbol", list(results), horizontal=True, key="research_symbol")
         r = results[rsym]
@@ -318,7 +308,7 @@ with tab_research:
             col.metric(label, pct(wf[key]["total_return"]),
                        delta=f"Sharpe {num(wf[key]['sharpe_ratio'])}, max DD {pct(wf[key]['max_drawdown'])}",
                        delta_color="off")
-        st.image(str(RESEARCH_DIR / f"{rsym}_walk_forward.png"), use_container_width=True)
+        st.image(str(RESEARCH_DIR / f"{rsym}_walk_forward.png"), width="stretch")
         st.caption("Parameters chosen per fold: " + ", ".join(wf["chosen_pairs"]))
 
         left, right = st.columns(2)
@@ -329,7 +319,7 @@ with tab_research:
                 f"{sens['pairs']} pairs: Sharpe {num(sens['sharpe_min'])} to {num(sens['sharpe_max'])} "
                 f"(median {num(sens['sharpe_median'])}); {sens['share_positive_return']:.0%} profitable.",
             )
-            st.image(str(RESEARCH_DIR / f"{rsym}_sensitivity.png"), use_container_width=True)
+            st.image(str(RESEARCH_DIR / f"{rsym}_sensitivity.png"), width="stretch")
         with right:
             st.subheader("3. Is the timing better than luck?")
             rb = r["random_baseline"]
@@ -337,7 +327,7 @@ with tab_research:
                 f"10/50 beats {rb['return_percentile']:.0%} of {rb['samples']} random schedules with the same "
                 f"trade count and holding lengths.",
             )
-            st.image(str(RESEARCH_DIR / f"{rsym}_random_baseline.png"), use_container_width=True)
+            st.image(str(RESEARCH_DIR / f"{rsym}_random_baseline.png"), width="stretch")
 
         st.subheader("4. Does it survive higher costs and late fills?")
         rob = pd.DataFrame(r["robustness"])
@@ -345,7 +335,7 @@ with tab_research:
         piv.index = [f"{c * 100:.2f}% / side" for c in piv.index]
         piv.columns = [f"delay {d} bar{'s' if d != 1 else ''}" for d in piv.columns]
         st.dataframe(piv.style.format("{:.2f}").background_gradient(cmap="RdYlGn", vmin=0, vmax=1.5),
-                     use_container_width=True)
+                     width="stretch")
         st.caption("Sharpe ratio of SMA 10/50 over the full period.")
 
 
@@ -360,7 +350,7 @@ with tab_ml:
         cfg = ml["settings"]
         st.markdown(
             f"Can a model predict whether the next **{cfg['horizon_days']} days** will be up? "
-            f"{len(cfg['features'])} backward-looking features, one model trained across BTC, ETH and SOL, "
+            f"{len(cfg['features'])} backward-looking features, one model trained across the ETFs, "
             f"purged walk-forward (train {cfg['train_days']} days, test {cfg['test_days']}). Every prediction "
             "below is out-of-sample. Trades go through Nautilus at "
             f"{cfg['cost_per_side'] * 100:.2f}% per side, entering at P ≥ {cfg['enter']} and exiting at "
@@ -374,10 +364,10 @@ with tab_ml:
             c = ml["classification"][key]
             col.metric(f"{label}: AUC", f"{c['pooled_auc']:.3f}",
                        delta=f"{c['pooled_auc'] - 0.5:+.3f} vs coin flip", delta_color="off")
-        st.image(str(ML_DIR / "fold_auc.png"), use_container_width=True)
+        st.image(str(ML_DIR / "fold_auc.png"), width="stretch")
         left, right = st.columns(2)
-        left.image(str(ML_DIR / "calibration.png"), use_container_width=True)
-        right.image(str(ML_DIR / "feature_importance.png"), use_container_width=True)
+        left.image(str(ML_DIR / "calibration.png"), width="stretch")
+        right.image(str(ML_DIR / "feature_importance.png"), width="stretch")
 
         st.subheader("2. Does it make money after costs?")
         msym = st.radio("Symbol", list(ml["symbols"]), horizontal=True, key="ml_symbol")
@@ -393,15 +383,15 @@ with tab_ml:
             index=["Return", "Max drawdown", "Sharpe", "Trades"],
         )
         st.caption(f"Out-of-sample: {r['oos_start']} → {r['oos_end']}")
-        st.dataframe(table, use_container_width=True)
-        st.image(str(ML_DIR / f"{msym}_equity.png"), use_container_width=True)
+        st.dataframe(table, width="stretch")
+        st.image(str(ML_DIR / f"{msym}_equity.png"), width="stretch")
         with st.expander("Threshold sensitivity (LightGBM)"):
             th = pd.DataFrame(r["thresholds"])
             th["total_return"] = th["total_return"].map(pct)
             th["sharpe_ratio"] = th["sharpe_ratio"].map(num)
             th["max_drawdown"] = th["max_drawdown"].map(pct)
             th["time_in_market"] = th["time_in_market"].map(lambda x: f"{x:.0%}")
-            st.dataframe(th, hide_index=True, use_container_width=True)
+            st.dataframe(th, hide_index=True, width="stretch")
 
         st.subheader("3. Can ML at least size the SMA trades?")
         sz_path = SIZING_DIR / "results.json"
@@ -425,7 +415,7 @@ with tab_ml:
             )
             sharpe["Average"] = sharpe.mean(axis=1)
             st.dataframe(sharpe.style.format("{:.2f}").background_gradient(cmap="RdYlGn", vmin=0.5, vmax=1.5),
-                         use_container_width=True)
+                         width="stretch")
             st.caption("Sharpe ratio, out-of-sample.")
             corr = sz["bet_correlation"]
             st.markdown(
@@ -433,7 +423,7 @@ with tab_ml:
                 f"over {sz['n_entries']} entries: **ML {corr['ml_size']:+.2f}**, shuffled control "
                 f"{corr['ml_size_shuffled']:+.2f}, vol target {corr['vol_target']:+.2f}.",
             )
-            st.image(str(SIZING_DIR / "bets_vs_outcomes.png"), use_container_width=True)
+            st.image(str(SIZING_DIR / "bets_vs_outcomes.png"), width="stretch")
             ssym = st.radio("Symbol", list(sz["symbols"]), horizontal=True, key="sizing_symbol")
-            st.image(str(SIZING_DIR / f"{ssym}_equity.png"), use_container_width=True)
+            st.image(str(SIZING_DIR / f"{ssym}_equity.png"), width="stretch")
 

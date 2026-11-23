@@ -1,6 +1,6 @@
 """Stage 1 research: is the SMA crossover edge real, or an artefact of one backtest?
 
-For each symbol (2018-2025 daily data, SOL from its 2020 listing) this runs:
+For each ETF (Alpaca daily data from 2016) this runs:
 
 1. Parameter sensitivity: Sharpe for a grid of fast/slow SMA pairs.
 2. Walk-forward optimisation: pick the best pair on 2 years, trade it on the
@@ -10,11 +10,11 @@ For each symbol (2018-2025 daily data, SOL from its 2020 listing) this runs:
    number of trades and holding lengths (timing skill vs luck).
 4. Cost & delay robustness: 10/50 under higher costs and late execution.
 
-Default execution assumptions: 99% of cash per entry, 0.10% taker fee + 0.05%
-slippage per side, fills at the signal bar's close.
+Default execution assumptions: 99% of cash per entry, decided at the close and
+filled at the next open (1 bp half-spread), plus 0.03% cost per side.
 
 Usage:
-    python scripts/download_data.py --symbols BTCUSDT ETHUSDT SOLUSDT --start-year 2018 --end-year 2025
+    python scripts/download_data.py
     python scripts/run_research.py            # writes reports/research/
 """
 
@@ -29,6 +29,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")  # Windows consoles default to cp1252
 
 import matplotlib  # noqa: E402
 
@@ -37,7 +39,9 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
-from src.data_loader import load_klines_csv  # noqa: E402
+from src.data_loader import DEFAULT_COST_RATE  # noqa: E402
+from src.data_loader import DEFAULT_SYMBOLS  # noqa: E402
+from src.data_loader import load_bars  # noqa: E402
 from src.data_loader import validate_daily  # noqa: E402
 from src.research import ResearchSettings  # noqa: E402
 from src.research import cost_delay_grid  # noqa: E402
@@ -51,13 +55,13 @@ COLORS = {"wf": "#1f6feb", "base": "#d29922", "bnh": "#8b949e", "real": "#cf222e
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--symbols", nargs="+", default=["BTCUSDT", "ETHUSDT", "SOLUSDT"])
+    p.add_argument("--symbols", nargs="+", default=list(DEFAULT_SYMBOLS))
     p.add_argument("--raw-dir", type=Path, default=ROOT / "data" / "raw")
     p.add_argument("--report-dir", type=Path, default=ROOT / "reports" / "research")
-    p.add_argument("--train-bars", type=int, default=730, help="walk-forward training window (days)")
-    p.add_argument("--test-bars", type=int, default=180, help="walk-forward test window (days)")
+    p.add_argument("--train-bars", type=int, default=504, help="walk-forward training window (sessions, ~2 years)")
+    p.add_argument("--test-bars", type=int, default=126, help="walk-forward test window (sessions, ~6 months)")
     p.add_argument("--random-samples", type=int, default=200)
-    p.add_argument("--slippage", type=float, default=0.0005, help="per side, on top of the 0.1%% fee")
+    p.add_argument("--cost", type=float, default=DEFAULT_COST_RATE, help="cost per side (fraction)")
     return p.parse_args(argv)
 
 
@@ -106,7 +110,7 @@ def plot_walk_forward(wf, symbol: str, path: Path) -> None:
     for d in wf.folds["test_start"]:
         ax.axvline(pd.Timestamp(d, tz="UTC"), color="black", lw=0.4, alpha=0.25)
     ax.set_yscale("log")
-    ax.set_ylabel("Equity (USDT, log scale)")
+    ax.set_ylabel("Equity (USD, log scale)")
     ax.set_title(f"{symbol}: out-of-sample equity (vertical lines = fold starts)")
     ax.legend(frameon=False, loc="upper left")
     ax.grid(alpha=0.25, which="both")
@@ -131,7 +135,7 @@ def plot_random(rb, symbol: str, path: Path) -> None:
 
 # --------------------------------------------------------------------------- main
 def research_symbol(symbol: str, args: argparse.Namespace, settings: ResearchSettings) -> dict:
-    df = load_klines_csv(args.raw_dir, symbol=symbol)
+    df = load_bars(args.raw_dir, symbol)
     data = validate_daily(df)
     grid = param_grid()
     out = args.report_dir
@@ -191,13 +195,13 @@ def write_summary(results: list[dict], args: argparse.Namespace, settings: Resea
         "# Stage 1 research summary",
         "",
         f"Execution assumptions: {settings.position_fraction:.0%} of free cash per entry, "
-        f"{settings.cost_rate * 100:.2f}% cost per side (0.10% fee + {args.slippage * 100:.2f}% slippage), "
-        "market orders filled at the signal bar's close, long only.",
+        f"{settings.cost_rate * 100:.2f}% cost per side, decided at the close and filled at the next open "
+        "(1 bp half-spread), long only.",
         "",
         "## Walk-forward (out-of-sample only)",
         "",
-        f"Train {args.train_bars} days, choose the best of {len(param_grid())} SMA pairs by Sharpe, "
-        f"trade it for the next {args.test_bars} days, roll forward.",
+        f"Train {args.train_bars} sessions, choose the best of {len(param_grid())} SMA pairs by Sharpe, "
+        f"trade it for the next {args.test_bars} sessions, roll forward.",
         "",
     ]
     rows = []
@@ -247,7 +251,7 @@ def write_summary(results: list[dict], args: argparse.Namespace, settings: Resea
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     args.report_dir.mkdir(parents=True, exist_ok=True)
-    settings = ResearchSettings(cost_rate=0.001 + args.slippage)
+    settings = ResearchSettings(cost_rate=args.cost)
 
     results = []
     for symbol in args.symbols:

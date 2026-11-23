@@ -14,16 +14,19 @@ import pandas as pd
 from src.backtest import BacktestOutput
 from src.backtest import realized_pnls
 from src.backtest import run_backtest
-from src.data_loader import TAKER_FEE
+from src.data_loader import DEFAULT_COST_RATE
+from src.data_loader import DEFAULT_HALF_SPREAD
+from src.data_loader import DEFAULT_SYMBOL
 from src.data_loader import bar_type_for
-from src.data_loader import binance_spot_instrument
+from src.data_loader import etf_instrument
+from src.data_loader import open_quotes
 from src.data_loader import to_nautilus_bars
 from src.metrics import PerformanceStats
 from src.metrics import buy_and_hold_equity
 from src.metrics import compute_stats
 from src.strategies.sma_crossover import SmaCrossoverConfig
 
-TRADE_COLUMNS = ["opened", "closed", "entry_px", "exit_px", "quantity", "net_pnl_usdt", "return"]
+TRADE_COLUMNS = ["opened", "closed", "entry_px", "exit_px", "quantity", "net_pnl_usd", "return"]
 
 
 @dataclass
@@ -49,7 +52,7 @@ def trades_table(out: BacktestOutput) -> pd.DataFrame:
             "entry_px": pos["avg_px_open"].astype(float).round(2),
             "exit_px": pos["avg_px_close"].astype(float).round(2),
             "quantity": pos["peak_qty"].astype(str).str.split().str[0].astype(float),
-            "net_pnl_usdt": [round(p, 2) for p in realized_pnls(pos)],
+            "net_pnl_usd": [round(p, 2) for p in realized_pnls(pos)],
             "return": pos["realized_return"].astype(float).round(4),
         },
     ).sort_values("opened").reset_index(drop=True)
@@ -59,27 +62,36 @@ def run_pipeline(
     df: pd.DataFrame,
     fast: int = 10,
     slow: int = 50,
-    trade_size: float = 0.5,
+    trade_size: float = 100,
     capital: float = 100_000.0,
     *,
-    symbol: str = "BTCUSDT",
+    symbol: str = DEFAULT_SYMBOL,
     interval: str = "1d",
-    position_fraction: float | None = None,
+    position_fraction: float | None = 0.99,
     execution_delay_bars: int = 0,
-    cost_rate: float = float(TAKER_FEE),
+    cost_rate: float = DEFAULT_COST_RATE,
+    execute_at_open: bool = True,
+    half_spread: float = DEFAULT_HALF_SPREAD,
     trade_start: pd.Timestamp | None = None,
     enter_if_above_on_start: bool = False,
     entry_fractions: dict[int, float] | None = None,
+    close_on_stop: bool = True,
 ) -> PipelineResult:
     """Run the SMA crossover backtest on ``df`` and compute all report data.
+
+    By default each signal decided on a daily close is executed at the next
+    session's open (bid/ask = open -/+ ``half_spread``), and ``cost_rate`` is
+    charged per side on top. Sizing defaults to 99% of cash; pass
+    ``position_fraction=None`` to buy a fixed ``trade_size`` of shares.
 
     With ``trade_start``, bars before it only warm up the indicators: no trades
     happen before it, and the equity curves, buy & hold and stats all start at
     the first bar on or after it.
     """
-    instrument = binance_spot_instrument(symbol)
+    instrument = etf_instrument(symbol)
     bar_type = bar_type_for(symbol, interval)
     bars = to_nautilus_bars(df, instrument, bar_type)
+    quotes = open_quotes(df, instrument, half_spread) if execute_at_open else None
     start_ns = None if trade_start is None else pd.Timestamp(trade_start).value
     config = SmaCrossoverConfig(
         bar_type=bar_type,
@@ -91,9 +103,11 @@ def run_pipeline(
         trade_start_ns=start_ns,
         enter_if_above_on_start=enter_if_above_on_start,
         entry_fractions=entry_fractions,
+        execute_at_open=execute_at_open,
+        close_on_stop=close_on_stop,
     )
 
-    out = run_backtest(bars, instrument, config, starting_capital=capital, cost_rate=cost_rate)
+    out = run_backtest(bars, instrument, config, starting_capital=capital, cost_rate=cost_rate, quotes=quotes)
     if out.bars_seen != len(bars):
         # Nautilus logs handler exceptions instead of raising; fail loudly here.
         raise RuntimeError(f"Strategy saw {out.bars_seen} of {len(bars)} bars")
@@ -109,6 +123,7 @@ def run_pipeline(
         if not keep.any():
             raise ValueError("trade_start is after the last bar")
         closes, equity = closes[keep], equity[keep]
+    # Buy & hold enters at the first close (no warm-up needed) and pays the same costs.
     bnh = buy_and_hold_equity(closes, capital, cost_rate)
 
     strat_stats = compute_stats(equity, realized_pnls(out.positions), capital)

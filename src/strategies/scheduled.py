@@ -2,7 +2,8 @@
 
 Used for the random-entry baseline: random schedules with the same number of
 trades and the same holding lengths as the real strategy, executed through the
-same Nautilus engine, fee model and sizing, so the only difference is timing.
+same Nautilus engine, fee model, sizing and next-open execution, so the only
+difference is timing.
 """
 
 from __future__ import annotations
@@ -12,6 +13,8 @@ from nautilus_trader.model import BarType
 from nautilus_trader.model import OrderSide
 from nautilus_trader.trading import Strategy
 from nautilus_trader.trading import StrategyConfig
+
+from src.strategies.sma_crossover import affordable_qty
 
 
 class ScheduledLongConfig(StrategyConfig):
@@ -40,27 +43,37 @@ class ScheduledLong(Strategy):
         self.instrument = None
         self.bars_seen = 0
         self.signals: list = []
+        self._actions: list[str] = []  # decided on a close, executed on the next open quote
 
     def on_start(self) -> None:
         self.instrument = self.cache.instrument(self.config.bar_type.instrument_id)
         self.subscribe_bars(self.config.bar_type)
+        self.subscribe_quotes(self.config.bar_type.instrument_id)
 
     def on_bar(self, bar: Bar) -> None:
         i = self.bars_seen
         self.bars_seen += 1
-        instrument_id = bar.bar_type.instrument_id
-        if i in self.config.exit_bars and self.portfolio.is_net_long(instrument_id):
-            self.close_all_positions(instrument_id)
-        if i in self.config.entry_bars and self.portfolio.is_net_flat(instrument_id):
-            account = self.portfolio.account(instrument_id.venue)
-            free = account.balance_free(self.instrument.quote_currency).as_double()
-            qty = self.instrument.make_qty(self.config.position_fraction * free / bar.close.as_double())
-            if qty.as_double() > 0:
-                self.submit_order(
-                    self.order_factory.market(
-                        instrument_id=instrument_id, order_side=OrderSide.BUY, quantity=qty,
-                    ),
-                )
+        if i in self.config.exit_bars:
+            self._actions.append("exit")
+        if i in self.config.entry_bars:
+            self._actions.append("enter")
+
+    def on_quote(self, quote) -> None:
+        actions, self._actions = self._actions, []
+        instrument_id = self.config.bar_type.instrument_id
+        for action in actions:
+            if action == "exit" and self.portfolio.is_net_long(instrument_id):
+                self.close_all_positions(instrument_id)
+            elif action == "enter" and self.portfolio.is_net_flat(instrument_id):
+                account = self.portfolio.account(instrument_id.venue)
+                free = account.balance_free(self.instrument.quote_currency).as_double()
+                qty = affordable_qty(self.instrument, self.config.position_fraction * free, quote.ask_price.as_double())
+                if qty.as_double() > 0:
+                    self.submit_order(
+                        self.order_factory.market(
+                            instrument_id=instrument_id, order_side=OrderSide.BUY, quantity=qty,
+                        ),
+                    )
 
     def on_stop(self) -> None:
         self.close_all_positions(self.config.bar_type.instrument_id)

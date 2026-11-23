@@ -17,6 +17,9 @@ Research options (all off by default, so the original rule is unchanged):
 * ``entry_fractions`` maps a bar's close timestamp (ns) to the fraction of cash
   to invest if an entry happens on that bar (0 skips the entry). Used to test
   sizing rules (volatility targeting, ML confidence) on top of the same timing.
+* ``execute_at_open`` decides on the daily close but submits the order on the
+  next quote (the next session's open), which is how a daily ETF strategy is
+  actually traded. Requires open quotes in the data (see ``open_quotes``).
 * ``enter_if_above_on_start`` joins an existing uptrend (fast > slow) on the
   first tradable bar instead of waiting for a fresh cross. Walk-forward folds
   use it so a trend spanning a fold boundary isn't silently skipped.
@@ -27,6 +30,7 @@ function, so it can be unit-tested without spinning up an engine.
 
 from __future__ import annotations
 
+import math
 from enum import Enum
 
 from nautilus_trader.indicators import SimpleMovingAverage
@@ -42,6 +46,21 @@ class Signal(Enum):
 
     ENTER_LONG = "enter_long"
     EXIT_LONG = "exit_long"
+
+
+def affordable_qty(instrument, cash: float, price: float):
+    """Largest quantity costing at most ``cash`` at ``price``, rounded *down* to the lot size.
+
+    ``instrument.make_qty`` rounds to the nearest increment, which can round a
+    buy up past the cash available (e.g. 3.7 shares -> 4); the risk engine then
+    rightly denies the order.
+    """
+    from nautilus_trader.model import Quantity
+
+    prec = instrument.size_precision
+    scale = 10**prec
+    units = math.floor(max(cash, 0.0) / price * scale + 1e-9) / scale
+    return Quantity(units, prec)
 
 
 def crossover_signal(prev_diff: float | None, diff: float) -> Signal | None:
@@ -71,7 +90,7 @@ class SmaCrossoverConfig(StrategyConfig):
     def __init__(
         self,
         bar_type: BarType,
-        trade_size: float = 0.5,
+        trade_size: float = 100,
         fast_period: int = 10,
         slow_period: int = 50,
         close_on_stop: bool = True,
@@ -80,6 +99,7 @@ class SmaCrossoverConfig(StrategyConfig):
         trade_start_ns: int | None = None,
         enter_if_above_on_start: bool = False,
         entry_fractions: dict[int, float] | None = None,
+        execute_at_open: bool = False,
         **kwargs: object,
     ) -> None:
         if fast_period <= 0 or slow_period <= 0:
@@ -104,6 +124,7 @@ class SmaCrossoverConfig(StrategyConfig):
         if entry_fractions is not None and any(not 0 <= f <= 1 for f in entry_fractions.values()):
             raise ValueError("entry_fractions values must be in [0, 1]")
         self.entry_fractions = entry_fractions
+        self.execute_at_open = execute_at_open
 
 
 class SmaCrossover(Strategy):
@@ -119,6 +140,7 @@ class SmaCrossover(Strategy):
         self.signals: list[tuple[int, Signal]] = []
         self._pending: tuple[Signal, int] | None = None  # (signal, bars until execution)
         self._trading_started = False
+        self._awaiting_open: tuple[Signal, int] | None = None  # (signal, decision bar ts)
 
     def on_start(self) -> None:
         bar_type = self.config.bar_type
@@ -129,6 +151,9 @@ class SmaCrossover(Strategy):
         self.register_indicator_for_bars(bar_type, self.fast)
         self.register_indicator_for_bars(bar_type, self.slow)
         self.subscribe_bars(bar_type)
+        if self.config.execute_at_open:
+            # Decisions are made on the close; orders go out on the next open's quote.
+            self.subscribe_quotes(bar_type.instrument_id)
 
     def on_bar(self, bar: Bar) -> None:
         self.bars_seen += 1
@@ -156,22 +181,34 @@ class SmaCrossover(Strategy):
             self._pending = (pending_signal, bars_left - 1)
             return
         self._pending = None
-        self._execute(pending_signal, bar)
+        if self.config.execute_at_open:
+            self._awaiting_open = (pending_signal, bar.ts_event)
+        else:
+            self._execute(pending_signal, bar.ts_event, bar.close.as_double())
 
-    def _entry_quantity(self, bar: Bar):
+    def on_quote(self, quote) -> None:
+        if self._awaiting_open is None:
+            return
+        signal, decision_ts = self._awaiting_open
+        self._awaiting_open = None
+        # Size buys against the ask we'd actually pay.
+        self._execute(signal, decision_ts, quote.ask_price.as_double())
+
+    def _entry_quantity(self, decision_ts: int, price: float):
         fraction = self.config.position_fraction
         if self.config.entry_fractions is not None:
-            fraction = self.config.entry_fractions.get(bar.ts_event, fraction if fraction is not None else 0.99)
+            fraction = self.config.entry_fractions.get(decision_ts, fraction if fraction is not None else 0.99)
         if fraction is None:
             return self.instrument.make_qty(self.config.trade_size)
-        account = self.portfolio.account(bar.bar_type.instrument_id.venue)
+        account = self.portfolio.account(self.config.bar_type.instrument_id.venue)
         free = account.balance_free(self.instrument.quote_currency).as_double()
-        return self.instrument.make_qty(fraction * free / bar.close.as_double())
+        return affordable_qty(self.instrument, fraction * free, price)
 
-    def _execute(self, signal: Signal, bar: Bar) -> None:
-        instrument_id = bar.bar_type.instrument_id
+    def _execute(self, signal: Signal, decision_ts: int, price: float) -> None:
+        """Act on ``signal`` decided at bar ``decision_ts``; ``price`` is the expected fill price."""
+        instrument_id = self.config.bar_type.instrument_id
         if signal is Signal.ENTER_LONG and self.portfolio.is_net_flat(instrument_id):
-            quantity = self._entry_quantity(bar)
+            quantity = self._entry_quantity(decision_ts, price)
             if quantity.as_double() <= 0:
                 return
             order = self.order_factory.market(
@@ -180,10 +217,10 @@ class SmaCrossover(Strategy):
                 quantity=quantity,
             )
             self.submit_order(order)
-            self.signals.append((bar.ts_event, signal))
+            self.signals.append((decision_ts, signal))
         elif signal is Signal.EXIT_LONG and self.portfolio.is_net_long(instrument_id):
             self.close_all_positions(instrument_id)
-            self.signals.append((bar.ts_event, signal))
+            self.signals.append((decision_ts, signal))
 
     def on_stop(self) -> None:
         instrument_id = self.config.bar_type.instrument_id

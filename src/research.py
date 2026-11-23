@@ -25,9 +25,11 @@ import numpy as np
 import pandas as pd
 
 from src.backtest import run_backtest
-from src.data_loader import TAKER_FEE
+from src.data_loader import DEFAULT_COST_RATE
 from src.data_loader import bar_type_for
-from src.data_loader import binance_spot_instrument
+from src.data_loader import bar_close_times
+from src.data_loader import etf_instrument
+from src.data_loader import open_quotes
 from src.data_loader import to_nautilus_bars
 from src.metrics import compute_stats
 from src.metrics import buy_and_hold_equity
@@ -38,7 +40,6 @@ from src.strategies.scheduled import ScheduledLongConfig
 
 DEFAULT_FASTS: tuple[int, ...] = (5, 10, 15, 20, 30, 40)
 DEFAULT_SLOWS: tuple[int, ...] = (30, 50, 75, 100, 150, 200)
-DEFAULT_SLIPPAGE = 0.0005  # 5 bps per side on top of the 0.1% taker fee
 
 
 @dataclass(frozen=True)
@@ -47,7 +48,7 @@ class ResearchSettings:
 
     capital: float = 100_000.0
     position_fraction: float = 0.99  # invest 99% of free cash on each entry
-    cost_rate: float = float(TAKER_FEE) + DEFAULT_SLIPPAGE  # per side
+    cost_rate: float = DEFAULT_COST_RATE  # per side: commission + slippage
     execution_delay_bars: int = 0
 
 
@@ -57,10 +58,6 @@ def param_grid(
 ) -> list[tuple[int, int]]:
     """All (fast, slow) pairs with fast < slow."""
     return [(f, s) for f in fasts for s in slows if f < s]
-
-
-def _bar_delta(df: pd.DataFrame) -> pd.Timedelta:
-    return pd.Timedelta(df.index[1] - df.index[0])
 
 
 def run_window(
@@ -76,8 +73,8 @@ def run_window(
     """Backtest bars ``[start, end)`` of ``df`` with ``warmup`` bars before ``start``."""
     lo = max(0, start - warmup)
     window = df.iloc[lo:end]
-    # A bar's ts_event is its close, i.e. open time + bar length.
-    trade_start = df.index[start] + _bar_delta(df)
+    # A bar's ts_event is its session close (16:00 New York).
+    trade_start = bar_close_times(df)[start]
     return run_pipeline(
         window,
         fast,
@@ -143,8 +140,8 @@ def walk_forward(
     symbol: str,
     grid: list[tuple[int, int]],
     settings: ResearchSettings = ResearchSettings(),
-    train_bars: int = 730,
-    test_bars: int = 180,
+    train_bars: int = 504,  # ~2 years of sessions
+    test_bars: int = 126,  # ~6 months
     baseline: tuple[int, int] = (10, 50),
     min_test_bars: int = 60,
 ) -> WalkForwardResult:
@@ -293,15 +290,23 @@ def random_entry_baseline(
         position_fraction=settings.position_fraction, cost_rate=settings.cost_rate,
         execution_delay_bars=settings.execution_delay_bars,
     )
-    trades = real.trades
-    holds = [
-        max(1, (pd.Timestamp(c) - pd.Timestamp(o)).days)
-        for o, c in zip(trades["opened"], trades["closed"])
-    ]
+    # Holding lengths in bars, from the strategy's own entry/exit decisions.
+    close_ns = [int(t.value) for t in bar_close_times(df)]
+    pos = {ns: i for i, ns in enumerate(close_ns)}
+    holds, entry_i = [], None
+    for ts, sig in real.output.signals:
+        if sig.value == "enter_long":
+            entry_i = pos[ts]
+        elif entry_i is not None:
+            holds.append(max(1, pos[ts] - entry_i))
+            entry_i = None
+    if entry_i is not None:  # still open at the end
+        holds.append(max(1, len(close_ns) - 1 - entry_i))
 
-    instrument = binance_spot_instrument(symbol)
+    instrument = etf_instrument(symbol)
     bar_type = bar_type_for(symbol)
     bars = to_nautilus_bars(df, instrument, bar_type)
+    quotes = open_quotes(df, instrument)
     closes = real.closes
     rng = np.random.default_rng(seed)
     rets, sharpes = [], []
@@ -313,7 +318,7 @@ def random_entry_baseline(
         )
         out = run_backtest(
             bars, instrument, cfg, starting_capital=settings.capital,
-            cost_rate=settings.cost_rate, strategy_cls=ScheduledLong,
+            cost_rate=settings.cost_rate, strategy_cls=ScheduledLong, quotes=quotes,
         )
         eq = out.equity.reindex(closes.index).ffill().fillna(settings.capital)
         st = compute_stats(eq, [], settings.capital)
@@ -334,7 +339,7 @@ def cost_delay_grid(
     symbol: str,
     fast: int = 10,
     slow: int = 50,
-    costs: tuple[float, ...] = (0.001, 0.0015, 0.002, 0.003),
+    costs: tuple[float, ...] = (0.0001, 0.0003, 0.0005, 0.001),
     delays: tuple[int, ...] = (0, 1, 2),
     settings: ResearchSettings = ResearchSettings(),
 ) -> pd.DataFrame:

@@ -32,8 +32,8 @@ def test_gate_fraction() -> None:
 
 
 def test_vol_target_fraction_scales_down_only_when_vol_is_high() -> None:
-    low = 0.3 / np.sqrt(365)  # 30% annualised: below target, full size
-    high = 1.2 / np.sqrt(365)  # 120% annualised: half the 60% target
+    low = 0.10 / np.sqrt(252)  # 10% annualised: below the 15% target, full size
+    high = 0.30 / np.sqrt(252)  # 30% annualised: half size
     assert vol_target_fraction(low) == pytest.approx(MAX_FRACTION)
     assert vol_target_fraction(high) == pytest.approx(MAX_FRACTION * 0.5)
 
@@ -49,7 +49,7 @@ def test_entry_fractions_resize_and_skip_entries() -> None:
     ts = _entry_ts(df)
     half = run_pipeline(df, 10, 50, position_fraction=0.99, entry_fractions={ts: 0.5})
     trade = half.trades.iloc[0]
-    assert trade["entry_px"] * trade["quantity"] == pytest.approx(50_000, rel=1e-3)
+    assert 50_000 - trade["entry_px"] <= trade["entry_px"] * trade["quantity"] <= 50_000
 
     skipped = run_pipeline(df, 10, 50, position_fraction=0.99, entry_fractions={ts: 0.0})
     assert skipped.trades.empty and skipped.output.signals == []
@@ -57,7 +57,7 @@ def test_entry_fractions_resize_and_skip_entries() -> None:
     # Bars missing from the map fall back to position_fraction.
     default = run_pipeline(df, 10, 50, position_fraction=0.99, entry_fractions={})
     t = default.trades.iloc[0]
-    assert t["entry_px"] * t["quantity"] == pytest.approx(99_000, rel=1e-3)
+    assert 99_000 - t["entry_px"] <= t["entry_px"] * t["quantity"] <= 99_000
 
 
 def test_entry_fractions_validation(bar_type) -> None:
@@ -67,8 +67,8 @@ def test_entry_fractions_validation(bar_type) -> None:
 
 def test_long_state_dataset_keeps_only_fast_above_slow() -> None:
     rng = np.random.default_rng(3)
-    df = make_ohlcv(20_000 * np.exp(np.cumsum(rng.normal(0, 0.03, 500))))
-    full = build_dataset({"BTCUSDT": df}, horizon=20)
-    long_only = long_state_dataset({"BTCUSDT": df}, horizon=20)
+    df = make_ohlcv(300 * np.exp(np.cumsum(rng.normal(0, 0.012, 500))))
+    full = build_dataset({"SPY": df}, horizon=20)
+    long_only = long_state_dataset({"SPY": df}, horizon=20)
     assert 0 < len(long_only) < len(full)
     assert (long_only["sma_10_50"] > 0).all()

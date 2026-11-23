@@ -6,7 +6,8 @@ Each bar looks up ``P(next horizon return > 0)`` for its close timestamp, then:
 * exits when ``prob <= exit_threshold`` and long.
 
 The gap between the two thresholds is hysteresis, to stop small wobbles around
-0.5 from churning fees.
+0.5 from churning fees. Decisions are made on the daily close and executed on
+the next quote (the next session's open), like the SMA strategy.
 
 In this backtest the probabilities are pre-computed out-of-sample by
 :mod:`src.ml.walk_forward`, so every one comes from a model trained only on
@@ -23,6 +24,7 @@ from nautilus_trader.trading import Strategy
 from nautilus_trader.trading import StrategyConfig
 
 from src.strategies.sma_crossover import Signal
+from src.strategies.sma_crossover import affordable_qty
 
 
 class MLSignalConfig(StrategyConfig):
@@ -64,35 +66,44 @@ class MLSignalStrategy(Strategy):
         self.instrument = None
         self.bars_seen = 0
         self.signals: list[tuple[int, Signal]] = []
+        self._awaiting_open: tuple[Signal, int] | None = None
 
     def on_start(self) -> None:
         self.instrument = self.cache.instrument(self.config.bar_type.instrument_id)
         self.subscribe_bars(self.config.bar_type)
+        self.subscribe_quotes(self.config.bar_type.instrument_id)
 
     def on_bar(self, bar: Bar) -> None:
         self.bars_seen += 1
         instrument_id = bar.bar_type.instrument_id
-        is_long = self.portfolio.is_net_long(instrument_id)
         signal = ml_decision(
             self.config.probabilities.get(bar.ts_event),
-            is_long,
+            self.portfolio.is_net_long(instrument_id),
             self.config.enter_threshold,
             self.config.exit_threshold,
         )
+        self._awaiting_open = (signal, bar.ts_event) if signal is not None else None
+
+    def on_quote(self, quote) -> None:
+        if self._awaiting_open is None:
+            return
+        signal, decision_ts = self._awaiting_open
+        self._awaiting_open = None
+        instrument_id = self.config.bar_type.instrument_id
         if signal is Signal.ENTER_LONG and self.portfolio.is_net_flat(instrument_id):
             account = self.portfolio.account(instrument_id.venue)
             free = account.balance_free(self.instrument.quote_currency).as_double()
-            qty = self.instrument.make_qty(self.config.position_fraction * free / bar.close.as_double())
+            qty = affordable_qty(self.instrument, self.config.position_fraction * free, quote.ask_price.as_double())
             if qty.as_double() > 0:
                 self.submit_order(
                     self.order_factory.market(
                         instrument_id=instrument_id, order_side=OrderSide.BUY, quantity=qty,
                     ),
                 )
-                self.signals.append((bar.ts_event, signal))
-        elif signal is Signal.EXIT_LONG:
+                self.signals.append((decision_ts, signal))
+        elif signal is Signal.EXIT_LONG and self.portfolio.is_net_long(instrument_id):
             self.close_all_positions(instrument_id)
-            self.signals.append((bar.ts_event, signal))
+            self.signals.append((decision_ts, signal))
 
     def on_stop(self) -> None:
         self.close_all_positions(self.config.bar_type.instrument_id)

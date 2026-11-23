@@ -26,3 +26,8 @@ Thumbs.db
 
 # Paper-trading journals
 /paper/
+
+# Secrets (Alpaca API keys)
+.env
+.env.*
+!.env.example

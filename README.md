@@ -1,355 +1,29 @@
-# BTC SMA Crossover Backtest (NautilusTrader v2)
+# ETF Trend Strategy Research (NautilusTrader v2)
 
-A small, fully reproducible backtest of a classic trend-following rule on Bitcoin,
-built on the [NautilusTrader](https://nautilustrader.io) 2.0 release candidate's
-event-driven `BacktestEngine`.
+A reproducible research and forward-testing project for a classic trend rule on
+US ETFs (**SPY, QQQ, IWM**), built on the
+[NautilusTrader](https://nautilustrader.io) 2.0 release candidate.
 
-**Rule:** on BTCUSDT daily bars, buy a fixed 0.5 BTC when the 10-day simple moving
-average crosses above the 50-day SMA, and sell back to flat when it crosses below.
-Long only, no leverage, Binance spot taker fees (0.1% per side) on every fill.
+**Rule:** buy when the 10-day simple moving average crosses above the 50-day SMA,
+and sell to cash when it crosses back below. Long only, no leverage.
 
-**Data:** calendar year 2025 BTCUSDT 1d klines from Binance's public archive,
-[data.binance.vision](https://data.binance.vision). No API keys, no accounts, and
-nothing in this repo places live or paper orders.
+**Execution model:** each decision is made on the daily close and **filled at the
+next session's open**, which is how a daily ETF strategy is actually traded.
+Costs are a 1 bp half-spread at the open plus 0.03% per side.
 
-## Results (2025-01-01 → 2025-12-31)
+**Data:** daily bars from [Alpaca's Market Data API](https://docs.alpaca.markets/),
+split- and dividend-adjusted, from 2016. Alpaca needs a free account and API keys,
+which you keep in a git-ignored `.env` file.
 
-![Equity curve](reports/equity_curve.png)
+Nothing in this repo places orders. The forward test is paper trading with no
+broker connection.
 
-| Metric | SMA 10/50 crossover | Buy & hold BTC |
-|---|---:|---:|
-| Total return | +1.04% | −7.53% |
-| Final equity (USDT) | 101,037.54 | 92,474.30 |
-| Number of trades (round trips) | 4 | 1 |
-| Win rate | 50% | 0% |
-| Max drawdown | −13.32% | −32.02% |
-| Sharpe ratio (daily returns, annualised ×√365, rf = 0) | 0.15 | 0.02 |
+> **Status:** the code, tests and dashboard are complete. ETF results will be added
+> here once data is downloaded with your Alpaca keys (see *Setup*).
 
-Starting capital is 100,000 USDT for both. Buy & hold puts all of it into BTC at the
-first daily close and sells at the last, paying the 0.1% fee on both sides.
+## Setup
 
-| Opened (UTC) | Closed (UTC) | Entry | Exit | Qty (BTC) | Net PnL (USDT) |
-|---|---|---:|---:|---:|---:|
-| 2025-04-21 | 2025-06-23 | 85,179.24 | 100,963.87 | 0.5 | +7,799.24 |
-| 2025-07-02 | 2025-08-24 | 105,681.14 | 115,438.05 | 0.5 | +4,767.90 |
-| 2025-09-18 | 2025-09-27 | 116,447.59 | 109,643.46 | 0.5 | −3,515.11 |
-| 2025-10-04 | 2025-10-18 | 122,232.00 | 106,431.68 | 0.5 | −8,014.49 |
-
-Full outputs are in [`reports/`](reports): `summary.md`, `metrics.json`, `trades.csv`
-and `equity_curve.png`.
-
-### How to read these numbers
-
-- **The comparison isn't like for like on exposure.** The strategy holds a fixed 0.5 BTC,
-  roughly 40–60% of the account depending on price. Buy & hold is 100% invested.
-  A good part of the smaller drawdown comes from simply holding less BTC, not from
-  the timing signal.
-- **Four trades is not a sample.** One year of daily bars gives a handful of round
-  trips. A win rate of 50% on four trades says almost nothing, and the result swings
-  on one or two of them. In 2025 the rule caught the April–August rally, then gave
-  back most of it in two whipsaws around the October top.
-- **Warmup.** The 50-day SMA needs 50 bars, so the strategy can't act before
-  mid-February. Buy & hold is measured over the full year.
-
-## Interactive dashboard
-
-A Streamlit app runs the same Nautilus backtest live. You can change the date
-range, SMA periods, trade size and starting capital, then compare the strategy
-with buy & hold on interactive charts.
-
-```powershell
-streamlit run app/streamlit_app.py      # opens http://localhost:8501
-```
-
-![Streamlit dashboard](docs/app_screenshot.jpg)
-
-The app has the following:
-
-- A symbol picker (BTC, ETH, SOL), sizing by % of cash or fixed quantity, and
-  sliders for slippage and execution delay.
-- **Stage 1 research** and **Stage 2 ML** tabs. The Stage 1 tab presents the walk-forward, sensitivity,
-  random-baseline and robustness results described below.
-- Metric cards for return, drawdown and Sharpe, each with the gap versus buy & hold.
-- Linked equity, price/SMA and drawdown charts with buy and sell markers.
-- The trades table with a CSV download.
-- A warning when the trade size can cost more than the account holds. Nautilus's
-  risk engine denies those entries.
-
-The app and `scripts/run_backtest.py` share `src/pipeline.py`, so both always
-report the same numbers. The app reads only local archive data and never
-connects to an exchange.
-
-## Stage 1 research: is the edge real?
-
-One good year proves nothing, so `scripts/run_research.py` tests the rule on
-**BTC, ETH and SOL from 2018 to 2025** (SOL from its 2020 listing). It asks four
-questions, all through the same Nautilus engine. Every run invests 99% of cash
-per entry and pays 0.10% fee + 0.05% slippage per side.
-
-**1. Does re-optimising parameters help?** Walk-forward: on each 2-year window,
-pick the best of 34 SMA pairs by Sharpe, then trade it untouched for the next
-6 months, and roll forward. Only those out-of-sample months are stitched together.
-
-| Symbol | Out-of-sample | Walk-forward optimised | Fixed 10/50 | Buy & hold |
-|---|---|---:|---:|---:|
-| BTCUSDT | Jul 2020 to Dec 2025 | +341% (Sharpe 0.87, DD −53%) | +740% (1.14, −54%) | +854% (1.00, −77%) |
-| ETHUSDT | Jul 2020 to Dec 2025 | +546% (0.88, −61%) | +1825% (1.21, −50%) | +1142% (0.98, −79%) |
-| SOLUSDT | Feb 2023 to Dec 2025 | +166% (0.85, −57%) | +463% (1.26, −52%) | +448% (1.12, −60%) |
-
-![BTC walk-forward](reports/research/BTCUSDT_walk_forward.png)
-
-**2. Is it one lucky parameter pair?** No. All 34 fast/slow pairs were profitable
-on every asset, with Sharpe ratios between about 0.6 and 1.4.
-
-**3. Is the timing better than luck?** The 10/50 rule beat 92% (BTC, ETH) and
-100% (SOL) of 200 random entry schedules that had the same number of trades and
-the same holding lengths.
-
-**4. Does it survive costs and late fills?** Raising costs to 0.30% per side
-barely moves Sharpe, because the rule only trades a few times a year. Acting 1–2
-days late hurts more: BTC's Sharpe drops from 0.92 to 0.73.
-
-### What this says
-
-- **Optimising made things worse.** Parameters that were best in the last 2 years
-  underperformed the plain 10/50 rule in the next 6 months, on all three assets.
-  This is the classic overfitting result, and the reason to always test out of
-  sample before trusting a tuned model.
-- **The broad trend-following effect looks real but modest.** It works across
-  parameters and assets and beats most random timings. Its advantage over buy & hold
-  is mostly a **shallower drawdown**, not reliably higher returns.
-- **The evidence is weaker than it looks.** Beating 92% of random schedules is
-  roughly a p ≈ 0.08 result, which is not conventionally significant. And
-  2018–2025 was an unusually strong period for crypto.
-
-The full tables and per-symbol charts are in
-[`reports/research/summary.md`](reports/research/summary.md). The dashboard's
-**Stage 1 research** tab shows them interactively.
-
-```powershell
-python scripts/download_data.py --symbols BTCUSDT ETHUSDT SOLUSDT --start-year 2018 --end-year 2025
-```
-
-```powershell
-python scripts/run_research.py      # ~90 s, writes reports/research/
-```
-
-Method notes:
-
-- **Warmup and fresh capital:** every window gets extra warmup bars so the slow SMA
-  is ready on its first day, and starts with fresh capital.
-- **Fold boundaries:** if the fast SMA is already above the slow one when a window
-  starts, the strategy enters immediately, so a trend crossing a fold boundary isn't
-  skipped. Positions are closed at each fold's end, which adds a round trip of cost.
-- **Random baseline:** it reuses the strategy's own holding lengths, so it tests
-  *timing* at equal exposure.
-
-## Stage 2: can machine learning do better?
-
-`scripts/run_ml.py` asks whether a model can predict the next **5-day direction**
-well enough to trade.
-
-1. **Features:** 17 backward-looking, scale-free features per day: returns over
-   1–60 days, volatility, SMA ratios, RSI, distance from 90-day high/low, a volume
-   z-score and range ([`src/ml/features.py`](src/ml/features.py)). A test confirms
-   that changing future prices never changes past features.
-2. **Model:** one model is trained across BTC, ETH and SOL using a **purged
-   walk-forward** ([`src/ml/walk_forward.py`](src/ml/walk_forward.py)). It trains
-   on 2 years, drops the last 5 days (their labels overlap the test window), then
-   predicts the next 6 months and rolls forward. Hyperparameters were fixed up
-   front, not tuned.
-3. **Trading:** the out-of-sample probabilities are traded through Nautilus by
-   `MLSignalStrategy`. It enters at P ≥ 0.52 and exits at P ≤ 0.48, invests 99% of
-   cash and pays 0.15% per side. The results are compared with SMA 10/50 and
-   buy & hold on the same days.
-4. **Controls:** logistic regression serves as a simple baseline, and LightGBM
-   trained on **shuffled labels** shows what pure noise looks like.
-
-**Prediction quality (out-of-sample AUC, 0.5 = coin flip):** LightGBM 0.507,
-logistic regression 0.516, shuffled-label control 0.497.
-
-**Trading results (out-of-sample, after costs):**
-
-| Symbol | Period | LightGBM | Logistic reg. | Shuffled control | SMA 10/50 | Buy & hold |
-|---|---|---:|---:|---:|---:|---:|
-| BTCUSDT | Jul 2020 to Dec 2025 | +162% | +210% | +92% | **+698%** | +854% |
-| ETHUSDT | Jul 2020 to Dec 2025 | −19% | +104% | +321% | **+1727%** | +1142% |
-| SOLUSDT | Feb 2021 to Dec 2025 | +88% | +234% | +131% | **+3831%** | +854% |
-
-![ML vs baselines, BTC](reports/ml/BTCUSDT_equity.png)
-
-### What this says
-
-- **The model has essentially no out-of-sample skill.** An AUC of 0.51 is barely
-  distinguishable from the shuffled-label control. The model's confidence is
-  meaningless: whether it predicts 35% or 80%, about 53% of cases go up (see
-  [`calibration.png`](reports/ml/calibration.png)).
-- **It loses to the 2-line SMA rule on every asset.** It trades 5× more often,
-  pays more in costs, and sits out a third or more of the days during strong
-  bull runs. Changing the thresholds doesn't rescue it, and on ETH the shuffled
-  control did better.
-- **This is the expected result, and the reason to build the harness first.**
-  Daily price-and-volume features are public and heavily arbitraged. A model on
-  them alone is unlikely to find durable short-horizon edge. Without the
-  walk-forward, purging and controls, an in-sample version of this model would
-  have looked great.
-
-Directions that might plausibly help (not yet tested): longer horizons that
-align with the trend effect Stage 1 found, regime filters that *size* the SMA
-rule rather than replace it, and data that isn't pure price (funding rates,
-on-chain flows, order-book imbalance).
-
-```powershell
-python scripts/run_ml.py            # ~15 s, writes reports/ml/
-```
-
-### Stage 2b: ML as a position-size filter
-
-Since the model can't replace the SMA rule, `scripts/run_ml_sizing.py` gives it
-a narrower job: **keep the SMA 10/50 entries and exits, and let the model decide
-how much to bet on each entry.**
-
-- **Model:** trained only on days when SMA10 > SMA50, to predict whether the next
-  20 days are up (same purged walk-forward).
-- **Schemes:** all sizing rules were fixed before looking at results.
-  - *ML size:* 25–99% of cash, scaled by the predicted probability.
-  - *ML gate:* skip the entry when P < 0.5.
-  - *Vol target (no ML):* scale down when 30-day volatility is above 60% a year.
-  - *Controls:* logistic regression, and a model trained on shuffled labels.
-
-Sharpe ratios are compared because smaller bets shrink returns and drawdowns
-together.
-
-| Sharpe (out-of-sample) | BTC | ETH | SOL | Average |
-|---|---:|---:|---:|---:|
-| Fixed 99% (Stage 1 rule) | 1.11 | 1.19 | 1.34 | **1.21** |
-| Vol target 60%, no ML | **1.16** | **1.21** | 1.17 | 1.18 |
-| ML size (LightGBM) | 1.04 | 0.86 | **1.52** | 1.14 |
-| ML gate (LightGBM) | 1.06 | 0.47 | 1.43 | 0.99 |
-| ML size (logistic regression) | 0.82 | 0.88 | 1.15 | 0.95 |
-| ML size, shuffled labels (control) | 0.68 | 0.91 | 1.20 | 0.93 |
-| Buy & hold | 0.98 | 0.98 | 0.97 | 0.98 |
-
-![Bets vs outcomes](reports/ml_sizing/bets_vs_outcomes.png)
-
-What this says:
-
-- **The model's bet sizes are unrelated to trade outcomes.** Across 66 SMA
-  entries, the rank correlation between ML bet size and trade return is +0.02.
-  The shuffled control reached −0.35 purely by chance, which shows how noisy
-  66 trades are.
-- **The SOL improvement is one trade.** In November 2022 (the FTX collapse) the
-  SMA rule entered just before a −54% trade, and the model happened to bet 42%
-  instead of 99%. Logistic regression and the other two assets don't back it up.
-- **No ML scheme beats the plain rule on average.** The simple volatility target
-  is the only scheme that improves Sharpe and drawdown on BTC and ETH, and it
-  needs no model. It still hurts SOL.
-
-```powershell
-python scripts/run_ml_sizing.py     # ~10 s, writes reports/ml_sizing/
-```
-
-The dashboard's **Stage 2 ML** tab shows the AUC per fold, calibration, feature
-importance, and equity curves for each symbol.
-
-## Stage 3: paper trading (live data, simulated fills)
-
-`scripts/paper_trade.py` runs the **same `SmaCrossover` logic** inside a
-NautilusTrader `LiveNode` in `SANDBOX` mode:
-
-- **Data in:** live public Binance market data (daily bars plus best bid/ask), with
-  no API keys.
-- **Orders out:** Nautilus's in-process **sandbox** execution client simulates every
-  fill. No exchange execution client exists in this code path, so no order can reach
-  an exchange. A test enforces this.
-
-```powershell
-python scripts/paper_trade.py                                   # BTCUSDT daily, SMA 10/50; leave running
-```
-
-```powershell
-python scripts/paper_trade.py --interval 1m --fast 3 --slow 8 --duration 600   # 10-minute smoke test
-```
-
-```powershell
-python scripts/paper_report.py paper/BTCUSDT_1d_10-50.jsonl     # summarise a session
-```
-
-What the paper session adds over a backtest:
-
-- **Warmup from live history:** on start it requests the last 60 bars, warms the
-  SMAs, and (by default) joins an existing uptrend. Crosses inside that history are
-  not traded.
-- **Real spread:** fills are driven by live **bid/ask quotes**, so buys pay the ask
-  and sells hit the bid, unlike the backtest's bar-close fills. Each fill records how
-  far it landed from the bar close. `paper_report.py` compares that with the 5 bps
-  slippage the research assumed. Pass `--bar-fills` to fill at the bar close instead,
-  as the backtest does.
-- **Journal:** every warmup, bar, signal, fill and stop is appended to
-  `paper/*.jsonl` (git-ignored).
-
-Notes:
-
-- **Region.** `api.binance.com` answers **HTTP 451 (restricted location)** from this
-  machine, so the default `--region us` uses **Binance.US** public data. Its prices
-  track Binance.com closely but not exactly, and the research used Binance.com
-  archives. Use the region where you would actually trade.
-- **Fees.** The simulated fee defaults to 0.1% per side. Set `--fee` to your actual
-  fee tier.
-- **Restarts.** Each run is a fresh session: the sandbox account resets to
-  `--capital`. Because the rule is "long while SMA10 > SMA50", a restarted session
-  rejoins the trend and its *decisions* carry over, but its cash history does not.
-  For a continuous record, run it on an always-on machine.
-- **What it can't tell you.** On daily bars it trades a few times a year, so it takes
-  months of paper trading before the record says much. A smoke test proves the
-  plumbing, not the strategy.
-
-Going from here to real orders would mean adding an exchange *execution* client
-with API keys. That is deliberately not in this repo.
-
-## How it works
-
-```
-scripts/download_data.py   →  data/raw/BTCUSDT-1d-2025-MM.csv   (SHA256-verified)
-src/data_loader.py         →  pandas OHLCV → validated → Nautilus Bar objects
-src/strategies/sma_crossover.py  SmaCrossover(Strategy) + SmaCrossoverConfig
-src/backtest.py            →  BacktestEngine, simulated Binance spot venue, equity curve
-src/metrics.py             →  return, drawdown, Sharpe, win rate, buy-and-hold baseline
-src/pipeline.py            →  one call: bars → backtest → aligned curves, stats, trades
-src/research.py            →  sensitivity grid, walk-forward, random baseline, cost/delay grid
-scripts/run_research.py    →  Stage 1 research across symbols, writes reports/research/
-src/ml/                    →  features/labels, purged walk-forward training, evaluation
-src/strategies/ml_signal.py   long-only strategy driven by model probabilities
-scripts/run_ml.py          →  Stage 2 ML experiment, writes reports/ml/
-scripts/run_ml_sizing.py   →  Stage 2b ML/vol sizing of SMA entries, writes reports/ml_sizing/
-src/paper/                 →  sandbox LiveNode builder, instrumented strategy, JSONL journal
-scripts/paper_trade.py     →  Stage 3 paper trading on live public data (simulated fills)
-scripts/paper_report.py    →  summarise a paper journal, slippage vs backtest assumption
-scripts/run_backtest.py    →  CLI: runs the pipeline, writes reports/
-app/streamlit_app.py       →  interactive dashboard on the same pipeline
-```
-
-Modelling choices:
-
-- **No look-ahead.** Each daily bar is stamped with its *close* time (open + 24h),
-  so the strategy only sees a day's close once that day is over.
-- **Fills.** Market orders fill at the close of the bar that triggered the signal,
-  as a taker, with a `MakerTakerFeeModel(0.001, 0.001)` on the venue. BTC trades
-  24/7, so the daily close is effectively the next day's open, but there is
-  **no slippage model**.
-- **Venue.** Binance spot is simulated as a multi-currency `CASH` account
-  (USDT + BTC) with `NETTING` positions. Equity is marked to market every bar as
-  `USDT + BTC × close`.
-- **End of test.** Any open position is closed on the final bar, so every trade is
-  realised in the stats. In 2025 the strategy was already flat by then.
-- **Signal rule.** `crossover_signal()` is a pure function: the spread `fast − slow`
-  must move from `≤ 0` to `> 0` to enter, or from `≥ 0` to `< 0` to exit. It is unit
-  tested separately from the engine.
-
-## How to run
-
-Requires Python 3.12. Commands are shown for Windows PowerShell. On macOS or Linux,
-use `source .venv/bin/activate` instead.
+Requires Python 3.12. Commands are shown for Windows PowerShell.
 
 ```powershell
 python -m venv .venv
@@ -357,89 +31,141 @@ python -m venv .venv
 pip install -r requirements.txt     # pins nautilus-trader==2.0.0rc6
 ```
 
-```powershell
-python scripts/download_data.py     # ~12 small zips from data.binance.vision → data/raw/
+1. Create a free account at [alpaca.markets](https://alpaca.markets). Paper-trading
+   keys are fine; only market data is read.
+2. Copy `.env.example` to `.env` and paste in your keys:
+
+   ```
+   ALPACA_API_KEY_ID=...
+   ALPACA_API_SECRET_KEY=...
+   ```
+
+   `.env` is git-ignored, and the scripts never print the keys.
+3. Download the data:
+
+   ```powershell
+   python scripts/download_data.py     # SPY, QQQ, IWM from 2016 -> data/raw/<SYMBOL>_1d.csv
+   ```
+
+   ```powershell
+   python -m src.data_loader           # verify: sessions, gaps, OHLC sanity
+   ```
+
+## What you can run
+
+| Command | What it does | Output |
+|---|---|---|
+| `python scripts/run_backtest.py` | 10/50 backtest per ETF vs buy & hold | `reports/<SYMBOL>_*`, `reports/summary.md` |
+| `python scripts/run_research.py` | **Stage 1:** walk-forward, parameter sensitivity, random-entry baseline, cost/delay robustness | `reports/research/` |
+| `python scripts/run_ml.py` | **Stage 2:** can an ML model (LightGBM, logistic regression) time ETFs? | `reports/ml/` |
+| `python scripts/run_ml_sizing.py` | **Stage 2b:** ML or volatility targeting as a position-size filter | `reports/ml_sizing/` |
+| `streamlit run app/streamlit_app.py` | Interactive dashboard: run backtests and browse research | localhost:8501 |
+| `python scripts/forward_test.py` | **Stage 3:** daily forward test (paper trading) | `paper/forward_status.md` |
+| `python -m pytest -q` | 103 tests | |
+
+## How it works
+
+```
+src/alpaca_data.py          Alpaca market-data client (read-only), .env keys, partial-bar guard
+src/data_loader.py          load/validate daily bars; Nautilus Equity; 16:00 ET bars; 09:30 ET open quotes
+src/strategies/
+  sma_crossover.py          the strategy: decide at close, execute on the next open quote
+  ml_signal.py              long-only strategy driven by model probabilities (Stage 2)
+  scheduled.py              random-schedule strategy for the luck baseline (Stage 1)
+src/backtest.py             Nautilus BacktestEngine: USD cash account, fee model, equity rebuilt from fills
+src/pipeline.py             one call: data -> backtest -> aligned equity curves, stats, trades
+src/metrics.py              return, max drawdown, Sharpe (252 sessions/yr), win rate, buy & hold
+src/research.py             sensitivity grid, walk-forward, random baseline, cost x delay grid
+src/ml/                     leakage-safe features, purged walk-forward training, evaluation, sizing
+src/paper/forward.py        forward test: replay the strategy from a fixed start date each day
 ```
 
-```powershell
-python scripts/run_backtest.py      # prints the table, writes reports/
-```
+Modelling choices:
+
+- **No look-ahead.** Bars are stamped at the 16:00 New York close (handling
+  daylight saving). A decision on a close can only fill at a later open. The
+  downloader also drops today's bar until the session is over.
+- **Next-open fills.** The backtest feeds a quote at each 09:30 open (bid/ask = open
+  ∓ 1 bp), and the strategy submits its market order on that quote. Buys pay the
+  ask and sells hit the bid.
+- **Whole shares, never over-buying.** Entries invest 99% of cash, rounded **down**
+  to whole shares. Rounding to the nearest share can exceed the cash available, and
+  Nautilus's risk engine rightly denies those orders.
+- **Dividends included.** Prices are total-return adjusted, so buy & hold and the
+  strategy both earn dividends while invested. Cash earns nothing, which is
+  conservative for the strategy.
+- **Equity curve** is rebuilt from individual fills (cash + shares × close) at every
+  session, and tests reconcile it with realised P&L.
+
+## Forward test (paper trading)
 
 ```powershell
-python -m pytest -q                 # 99 tests, ~10 s
+python scripts/forward_test.py      # run once per trading day, after ~16:20 New York time
 ```
 
-Useful flags for the runner: `--fast 20 --slow 100`, `--trade-size 0.25`, `--capital 50000`,
-`--start 2025-03-01 --end 2025-12-31`. The downloader accepts `--year`, `--symbol`,
-`--interval` and `--force`.
+- **First run:** fixes the start date (the latest completed session) in
+  `paper/forward_state.json`.
+- **Every later run:** refreshes Alpaca data and replays the exact backtest
+  strategy, allowing trades only from the start date onward. Each ETF starts with
+  $10,000 of simulated cash.
+- **Output:** for each ETF, the trend, shares held, equity since the start, every
+  fill, and the **action due at the next open** (BUY, SELL or HOLD). This goes to
+  `paper/forward_status.md` and `paper/forward_journal.jsonl` (both git-ignored).
+- **Restart-safe:** every run recomputes from the start date, so missed days or
+  reboots don't matter.
+- **Starting over:** `--reset` begins a new forward test.
 
-The data loader can be run directly to re-verify the dataset (365 rows, no gaps,
-OHLC sanity):
+Because the strategy trades only a few times a year per ETF, the forward test needs
+months to say much. Its job is to confirm that live data, signals and timing behave
+exactly as in the backtest before any real money is involved.
 
-```powershell
-python -m src.data_loader
-```
+## Going live later (not built)
+
+The recommended path is NautilusTrader's **Interactive Brokers adapter**, which
+covers stocks and ETFs. The same `SmaCrossover` strategy would run in a `LiveNode`
+connected to IB Gateway, starting with an IBKR **paper** account. That needs your
+IBKR login and is deliberately not part of this repo yet.
 
 ## Tests
 
-- `tests/test_signals.py`: crossover edge cases (touching zero, no prior value),
-  known crossovers on hand-built price series, and config validation.
-- `tests/test_warmup.py`: no signals or fills before 50 bars, even when the trend
-  is obvious from bar 10, and a cross right after warmup *does* trade at that
-  bar's close.
-- `tests/test_backtest_smoke.py`: a synthetic run reconciles final equity with
-  realised PnL and checks fees are charged. An end-to-end run of the script
-  produces every report file (skipped if `data/raw/` is empty).
-- `tests/test_research.py`: execution delay, cash-based sizing, trade-start
-  warmup, joining a trend at a fold start, multi-asset instruments, the
-  random-schedule generator and walk-forward fold integrity.
-- `tests/test_ml.py`: no feature leakage, label maths, purge gap between train
-  and test, recovering a planted signal, finding nothing in noise or shuffled
-  labels, the ML decision rule, and an ML strategy run in Nautilus.
-- `tests/test_sizing.py`: sizing maps, per-entry sizing and skipping in the
-  SMA strategy, and the SMA-long training filter.
-- `tests/test_paper.py`: the paper code can't reach a real exchange (no exchange
-  execution client, no credentials, SANDBOX node), config wiring, journal
-  durability, the paper strategy run offline, and the report maths.
-- `tests/test_app.py`: the shared pipeline aligns and reconciles its curves, and the
-  Streamlit app renders the default backtest headlessly via `AppTest`.
+- **`tests/test_etf.py`:**
+  - New York session timestamps across daylight-saving changes.
+  - Loading the CSVs, validating trading days, and catching missing weeks.
+  - Next-open fills at the ask.
+  - Round-down share sizing.
+  - Equity reconciliation.
+  - The partial-bar guard.
+  - `.env` handling, and a check that the Alpaca client is market-data only.
+  - The forward test.
+- **`tests/test_signals.py`, `tests/test_warmup.py`:** crossover logic, and no trades
+  before the 50-session warmup.
+- **`tests/test_backtest_smoke.py`:** accounting consistency, and the CLI end to end
+  on a synthetic CSV (plus real data when present).
+- **`tests/test_research.py`, `tests/test_ml.py`, `tests/test_sizing.py`:**
+  - The walk-forward folds are truly out-of-sample.
+  - Features never use future data.
+  - Planted-signal recovery, and noise and shuffled-label controls.
+  - The sizing hooks.
+- **`tests/test_app.py`:** the dashboard renders, checked headlessly.
 
-## Project layout
+## Project history: the crypto version
 
-```
-src/            strategy, data loader, engine wrapper, metrics, pipeline
-app/            Streamlit dashboard
-scripts/        download_data.py, run_backtest.py
-tests/          pytest suite
-data/raw/       downloaded CSVs (git-ignored)
-reports/        generated summary, metrics, trades and chart; research/ (Stage 1), ml/ and ml_sizing/ (Stage 2)
-docs/           README images
-paper/          paper-trading journals (git-ignored)
-```
+This project started as a BTC/ETH/SOL study on Binance data. That version, with all
+of its research, is preserved at the git tag **`crypto-final`**. Its main findings
+carry over as lessons:
 
-## Notes on NautilusTrader 2.0
+- **Optimising hurt.** Re-optimising the SMA parameters walk-forward did worse out
+  of sample than keeping 10/50.
+- **The trend effect was modest.** It was real-looking (every parameter pair was
+  profitable, and the rule beat about 92% of random timings), but its edge was
+  mainly smaller drawdowns.
+- **ML found nothing.** ML models on price and volume features reached an AUC of
+  about 0.51, no better than a shuffled-label control. They lost to the simple rule
+  as signals and didn't help as position sizers.
 
-The 2.0 RC is a Rust/pyo3 rewrite, and several 1.x patterns no longer apply:
+## Disclaimer
 
-- Fees live on the venue's `fee_model` (required), not on the instrument.
-- Reports come from `engine.generate_*_report()`. There is no `engine.trader`.
-- A spot cash venue needs `base_currency=None`.
-- `StrategyConfig` subclasses must set custom fields in `__init__`.
-- Exceptions inside strategy handlers are logged, not raised. The runner and tests
-  check `bars_seen` and fill counts so a silent failure can't pass.
-
-## Disclaimer: a backtest is not evidence the rule works
-
-This is one rule, one asset and one year, tested on the same data used to write it.
-Even with fees included and look-ahead avoided, the result is a description of what
-*would have happened* in 2025, not a prediction.
-
-- The sample is tiny: 4 trades.
-- The outcome depends heavily on the regime. Moving-average crossovers do well in long
-  trends and lose money in choppy markets.
-- Slippage, spread, funding of idle cash, taxes and execution delays are not modelled.
-- Any parameter tweak made after looking at this chart would overfit it.
-
-To learn anything durable you would need multiple years and assets, out-of-sample
-and walk-forward testing, sensitivity analysis across parameters, and a realistic
-execution model. Nothing here is investment advice.
+This is research software. A backtest is not evidence that a rule will work in
+the future: it describes one period, with simplified execution, and every
+parameter choice made after looking at results risks overfitting. Nothing here
+is investment advice.

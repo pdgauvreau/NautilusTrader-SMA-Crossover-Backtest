@@ -1,4 +1,4 @@
-"""Leakage-safe features and labels for daily crypto bars.
+"""Leakage-safe features and labels for daily ETF bars.
 
 Rules that keep this honest:
 
@@ -6,20 +6,22 @@ Rules that keep this honest:
   Everything is built from backward-looking ``rolling``/``shift(+k)``/``pct_change``
   operations; there is no ``shift(-k)`` anywhere in :func:`make_features`.
 * All features are scale-free (returns, ratios, z-scores), so one model can be
-  trained on BTC, ETH and SOL together.
+  trained on several ETFs together.
 * The label for day *t* looks *forward* ``horizon`` days. When training, the
   last ``horizon`` rows before a test window must be dropped ("purged"),
   because their labels overlap the test period. See :mod:`src.ml.walk_forward`.
 
-The rows are indexed by the bar's **close** time (open time + 1 day), the same
-timestamp the Nautilus strategy sees as ``bar.ts_event``, so predictions line
-up with bars exactly.
+The rows are indexed by the bar's **close** time (16:00 New York on the
+session date), the same timestamp the Nautilus strategy sees as
+``bar.ts_event``, so predictions line up with bars exactly.
 """
 
 from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+
+from src.data_loader import bar_close_times
 
 FEATURES: list[str] = [
     "ret_1", "ret_3", "ret_5", "ret_10", "ret_20", "ret_60",
@@ -92,8 +94,7 @@ def make_labels(df: pd.DataFrame, horizon: int = 5) -> pd.DataFrame:
 
 
 def _close_index(df: pd.DataFrame) -> pd.DatetimeIndex:
-    step = pd.Timedelta(df.index[1] - df.index[0]) if len(df) > 1 else pd.Timedelta(days=1)
-    return pd.DatetimeIndex(df.index + step, name="close_time")
+    return bar_close_times(df)
 
 
 def build_dataset(frames: dict[str, pd.DataFrame], horizon: int = 5) -> pd.DataFrame:

@@ -1,26 +1,31 @@
-"""Load Binance spot kline CSVs and convert them to NautilusTrader v2 bars.
+"""Load daily ETF bars (from Alpaca CSVs) and convert them to NautilusTrader v2 objects.
 
 Pipeline::
 
-    df = load_klines_csv("data/raw")                 # tidy UTC-indexed DataFrame
-    summary = validate_daily(df)                     # integrity checks
-    instrument = btcusdt_instrument()
-    bars = to_nautilus_bars(df, instrument)          # list[nautilus_trader.model.Bar]
+    df = load_bars("data/raw", "SPY")              # one row per trading session
+    summary = validate_daily(df)                   # integrity checks
+    instrument = etf_instrument("SPY")
+    bars = to_nautilus_bars(df, instrument)        # list[Bar], stamped at the 16:00 ET close
+    quotes = open_quotes(df, instrument)           # QuoteTicks at the 09:30 ET open
 
-Timestamp convention (look-ahead safety)
-----------------------------------------
-A daily kline's OHLCV is only fully known when the day *closes*. Every ``Bar``
-produced here therefore has ``ts_event == ts_init == open_time + 1 interval``
-(i.e. the next day's 00:00 UTC for 1d bars). A strategy receiving the bar for
-2025-01-01 sees it at 2025-01-02T00:00Z, so it can never act on a close price
-before that close has happened.
+Index convention
+----------------
+Rows are indexed by the **session date** (UTC midnight of that date). Real event
+times come from :func:`bar_close_times` (16:00 America/New_York) and
+:func:`bar_open_times` (09:30 America/New_York), so daylight-saving changes are
+handled correctly. Early-close days (e.g. 13:00) are treated as 16:00; that
+only shifts timestamps, not prices.
 
-Fees
-----
-In Nautilus v2 ``CurrencyPair`` no longer carries ``maker_fee`` / ``taker_fee``;
-commissions are configured on the venue via a fee model. Use
-:func:`btcusdt_fee_model` (``MakerTakerFeeModel``, 0.1% / 0.1%) when adding the
-venue to the backtest engine.
+Look-ahead safety and fills
+---------------------------
+A daily bar is only known at the close, so each ``Bar`` has ``ts_event`` at
+16:00 ET. A strategy that decides on that bar can realistically trade at the
+**next session's open**. :func:`open_quotes` produces a quote at each open
+(bid/ask = open -/+ half the assumed spread) so the simulated venue can fill
+there. See ``execute_at_open`` in :mod:`src.strategies.sma_crossover`.
+
+Prices are split- and dividend-adjusted (Alpaca ``adjustment=all``), so
+returns include dividends.
 """
 
 from __future__ import annotations
@@ -33,119 +38,82 @@ from nautilus_trader.execution import MakerTakerFeeModel
 from nautilus_trader.model import Bar
 from nautilus_trader.model import BarType
 from nautilus_trader.model import Currency
-from nautilus_trader.model import CurrencyPair
+from nautilus_trader.model import Equity
 from nautilus_trader.model import InstrumentId
-from nautilus_trader.model import Money
 from nautilus_trader.model import Price
 from nautilus_trader.model import Quantity
+from nautilus_trader.model import QuoteTick
 from nautilus_trader.model import Symbol
-from nautilus_trader.testkit.providers import TestInstrumentProvider
 
-KLINE_COLUMNS: list[str] = [
-    "open_time",
-    "open",
-    "high",
-    "low",
-    "close",
-    "volume",
-    "close_time",
-    "quote_volume",
-    "count",
-    "taker_buy_volume",
-    "taker_buy_quote_volume",
-    "ignore",
-]
-FLOAT_COLUMNS: list[str] = [
-    "open",
-    "high",
-    "low",
-    "close",
-    "volume",
-    "quote_volume",
-    "taker_buy_volume",
-    "taker_buy_quote_volume",
-]
+# Listing venue for each supported ETF (matches Interactive Brokers' symbology in Nautilus).
+ETF_VENUES: dict[str, str] = {
+    "SPY": "ARCA",
+    "QQQ": "NASDAQ",
+    "IWM": "ARCA",
+}
+DEFAULT_SYMBOLS: tuple[str, ...] = tuple(ETF_VENUES)
+DEFAULT_SYMBOL = "SPY"
 
-DEFAULT_BAR_TYPE = "BTCUSDT.BINANCE-1-DAY-LAST-EXTERNAL"
-MAKER_FEE = Decimal("0.001")
-TAKER_FEE = Decimal("0.001")
+# Execution cost per side, as a fraction of notional.
+# Commission: IBKR-style ~$0.005/share is well under 0.01% for these ETFs; 0.01% is conservative.
+COMMISSION_RATE = 0.0001
+# Default extra slippage on top of the modelled open spread, for research runs.
+DEFAULT_SLIPPAGE = 0.0002
+DEFAULT_COST_RATE = COMMISSION_RATE + DEFAULT_SLIPPAGE
+# Half the bid/ask spread assumed at the open, applied to the synthetic open quotes.
+DEFAULT_HALF_SPREAD = 0.0001  # 1 bp each side; SPY/QQQ/IWM typically trade tighter
 
-# Epoch values above this are microseconds; below are milliseconds.
-# 1e14 us ~= 1973-03, 1e14 ms ~= year 5138, so the threshold is unambiguous.
-_US_THRESHOLD = 10**14
+NEW_YORK = "America/New_York"
+CSV_COLUMNS = ["date", "open", "high", "low", "close", "volume"]
+PRICE_PRECISION = 2
 
 
-def _epoch_to_utc(values: pd.Series) -> pd.DatetimeIndex | pd.Series:
-    """Convert integer epoch timestamps (ms or us, detected per row) to UTC datetimes."""
-    ints = values.astype("int64")
-    is_us = ints >= _US_THRESHOLD
-    as_us = ints.where(is_us, ints * 1_000)  # normalise everything to microseconds
-    return pd.to_datetime(as_us, unit="us", utc=True)
+def _check_symbol(symbol: str) -> str:
+    if symbol not in ETF_VENUES:
+        raise ValueError(f"Unsupported ETF {symbol!r}; add it to ETF_VENUES ({', '.join(ETF_VENUES)})")
+    return symbol
 
 
-def _read_one(path: Path) -> pd.DataFrame:
-    """Read a single Binance kline CSV, tolerating an optional header row."""
-    df = pd.read_csv(path, header=None, names=KLINE_COLUMNS, dtype=str)
-    # Drop a header row if present (first cell not numeric).
-    df = df[pd.to_numeric(df["open_time"], errors="coerce").notna()]
-    return df
+def csv_path(raw_dir: str | Path, symbol: str) -> Path:
+    return Path(raw_dir) / f"{_check_symbol(symbol)}_1d.csv"
 
 
-def load_klines_csv(
+def load_bars(
     raw_dir: str | Path,
-    symbol: str = "BTCUSDT",
-    interval: str = "1d",
+    symbol: str = DEFAULT_SYMBOL,
     start: str | pd.Timestamp | None = None,
     end: str | pd.Timestamp | None = None,
 ) -> pd.DataFrame:
-    """Load and concatenate monthly Binance kline CSVs from ``raw_dir``.
+    """Load ``<raw_dir>/<SYMBOL>_1d.csv`` written by ``scripts/download_data.py``.
 
-    Args:
-        raw_dir: Directory containing ``{symbol}-{interval}-YYYY-MM.csv`` files.
-        symbol: Binance symbol, e.g. ``"BTCUSDT"``.
-        interval: Kline interval, e.g. ``"1d"``.
-        start: Optional inclusive lower bound on open time (UTC if naive).
-        end: Optional inclusive upper bound on open time (UTC if naive).
-
-    Returns:
-        DataFrame indexed by ``open_time`` (tz-aware UTC, sorted, unique) with float
-        OHLCV/quote-volume columns, int ``count`` and a UTC ``close_time`` column.
-        Millisecond (pre-2025) and microsecond (2025+) epochs are both handled.
+    Returns a DataFrame indexed by session date (UTC midnight), with float
+    ``open, high, low, close, volume`` columns, sorted and de-duplicated.
+    ``start``/``end`` are inclusive session dates.
 
     Raises:
-        FileNotFoundError: If no matching CSV files exist.
+        FileNotFoundError: If the CSV does not exist.
     """
-    files = sorted(Path(raw_dir).glob(f"{symbol}-{interval}-*.csv"))
-    if not files:
-        raise FileNotFoundError(f"No {symbol}-{interval}-*.csv files in {raw_dir}")
-
-    raw = pd.concat([_read_one(f) for f in files], ignore_index=True)
-
-    df = pd.DataFrame(
-        {
-            "open_time": _epoch_to_utc(pd.to_numeric(raw["open_time"])),
-            "close_time": _epoch_to_utc(pd.to_numeric(raw["close_time"])),
-        }
-    )
-    for col in FLOAT_COLUMNS:
-        df[col] = pd.to_numeric(raw[col]).astype("float64")
-    df["count"] = pd.to_numeric(raw["count"]).astype("int64")
-
-    df = (
-        df.drop_duplicates(subset="open_time", keep="last")
-        .sort_values("open_time")
-        .set_index("open_time")
-    )
-
+    path = csv_path(raw_dir, symbol)
+    if not path.exists():
+        raise FileNotFoundError(f"No data for {symbol} at {path}; run scripts/download_data.py")
+    raw = pd.read_csv(path)
+    missing = set(CSV_COLUMNS) - set(raw.columns)
+    if missing:
+        raise ValueError(f"{path} is missing columns {sorted(missing)}")
+    df = raw[CSV_COLUMNS].copy()
+    df["date"] = pd.to_datetime(df["date"]).dt.tz_localize("UTC")
+    for col in CSV_COLUMNS[1:]:
+        df[col] = pd.to_numeric(df[col]).astype("float64")
+    df = df.drop_duplicates("date", keep="last").sort_values("date").set_index("date")
+    df.index.name = "session"
     if start is not None:
         df = df[df.index >= _as_utc(start)]
     if end is not None:
         df = df[df.index <= _as_utc(end)]
-    return df[["open", "high", "low", "close", "volume", *FLOAT_COLUMNS[5:], "count", "close_time"]]
+    return df
 
 
 def _as_utc(ts: str | pd.Timestamp) -> pd.Timestamp:
-    """Return ``ts`` as a tz-aware UTC timestamp (naive values are assumed UTC)."""
     t = pd.Timestamp(ts)
     return t.tz_localize("UTC") if t.tzinfo is None else t.tz_convert("UTC")
 
@@ -156,191 +124,152 @@ def _check(condition: bool, message: str) -> None:
         raise ValueError(message)
 
 
-def validate_daily(df: pd.DataFrame) -> dict[str, object]:
-    """Validate a daily kline DataFrame and return a summary.
+def validate_daily(df: pd.DataFrame, max_gap_days: int = 5) -> dict[str, object]:
+    """Integrity checks for daily trading-session bars.
 
-    Checks: non-empty, unique timestamps, every step exactly one day, no NaNs in
-    OHLCV, ``high >= max(open, close)`` and ``low <= min(open, close)``.
-
-    Args:
-        df: Output of :func:`load_klines_csv` for a ``1d`` interval.
-
-    Returns:
-        Summary dict with ``rows``, ``first``, ``last``, ``first_close``, ``last_close``.
+    Weekends and holidays are expected, so the gap check allows up to
+    ``max_gap_days`` calendar days between sessions (a long weekend plus a
+    holiday is 4). Larger gaps mean missing data.
 
     Raises:
         ValueError: If any check fails, with a message naming the offending rows.
     """
     _check(len(df) > 0, "DataFrame is empty")
     idx = df.index
-    _check(idx.is_unique, f"Duplicate timestamps: {idx[idx.duplicated()].tolist()}")
+    _check(idx.is_unique, f"Duplicate sessions: {idx[idx.duplicated()].tolist()}")
     _check(idx.is_monotonic_increasing, "Index is not sorted")
-
-    steps = idx.to_series().diff().dropna()
-    bad_steps = steps[steps != pd.Timedelta(days=1)]
-    _check(bad_steps.empty, f"Gaps/irregular steps at: {bad_steps.index.tolist()}")
-
+    gaps = idx.to_series().diff().dt.days
+    big = gaps[gaps > max_gap_days]
+    _check(big.empty, f"Gaps longer than {max_gap_days} days before: {big.index.tolist()}")
+    weekend = idx[idx.dayofweek >= 5]
+    _check(len(weekend) == 0, f"Weekend sessions: {weekend.tolist()}")
     ohlcv = df[["open", "high", "low", "close", "volume"]]
     _check(not ohlcv.isna().any().any(), f"NaNs in rows: {ohlcv[ohlcv.isna().any(axis=1)].index.tolist()}")
-
-    bad_high = df[df["high"] < df[["open", "close"]].max(axis=1)]
+    _check((ohlcv[["open", "high", "low", "close"]] > 0).all().all(), "Non-positive prices")
+    tol = 1e-9
+    bad_high = df[df["high"] < df[["open", "close"]].max(axis=1) - tol]
     _check(bad_high.empty, f"high < max(open, close) at: {bad_high.index.tolist()}")
-    bad_low = df[df["low"] > df[["open", "close"]].min(axis=1)]
+    bad_low = df[df["low"] > df[["open", "close"]].min(axis=1) + tol]
     _check(bad_low.empty, f"low > min(open, close) at: {bad_low.index.tolist()}")
-
     return {
         "rows": len(df),
         "first": idx[0].date().isoformat(),
         "last": idx[-1].date().isoformat(),
         "first_close": float(df["close"].iloc[0]),
         "last_close": float(df["close"].iloc[-1]),
+        "max_gap_days": int(gaps.max()) if len(gaps) > 1 else 0,
     }
 
 
-# (price_precision, size_precision) for Binance spot pairs used in this project.
-# SOLUSDT traded below $5 at listing, so it needs 4 price decimals.
-SPOT_SPECS: dict[str, tuple[int, int]] = {
-    "BTCUSDT": (2, 6),
-    "ETHUSDT": (2, 5),
-    "SOLUSDT": (4, 3),
-}
+# ------------------------------------------------------------------ timestamps
+def _session_time(index: pd.DatetimeIndex, hhmm: str) -> pd.DatetimeIndex:
+    dates = pd.DatetimeIndex(index).tz_localize(None).normalize() if index.tz is not None \
+        else pd.DatetimeIndex(index).normalize()
+    local = (dates + pd.Timedelta(hhmm + ":00")).tz_localize(NEW_YORK)
+    return local.tz_convert("UTC")
 
 
-def binance_spot_instrument(symbol: str) -> CurrencyPair:
-    """Return a Binance spot ``CurrencyPair`` for a ``*USDT`` symbol in :data:`SPOT_SPECS`."""
-    if symbol == "BTCUSDT":
-        return TestInstrumentProvider.btcusdt_binance()
-    if symbol not in SPOT_SPECS or not symbol.endswith("USDT"):
-        raise ValueError(f"No spot spec for {symbol}; add it to SPOT_SPECS")
-    price_prec, size_prec = SPOT_SPECS[symbol]
-    base = symbol[: -len("USDT")]
-    return CurrencyPair(
-        instrument_id=InstrumentId.from_str(f"{symbol}.BINANCE"),
+def bar_close_times(df_or_index: pd.DataFrame | pd.DatetimeIndex) -> pd.DatetimeIndex:
+    """16:00 America/New_York on each session date, in UTC."""
+    index = df_or_index.index if isinstance(df_or_index, pd.DataFrame) else df_or_index
+    return pd.DatetimeIndex(_session_time(index, "16:00"), name="close_time")
+
+
+def bar_open_times(df_or_index: pd.DataFrame | pd.DatetimeIndex) -> pd.DatetimeIndex:
+    """09:30 America/New_York on each session date, in UTC."""
+    index = df_or_index.index if isinstance(df_or_index, pd.DataFrame) else df_or_index
+    return pd.DatetimeIndex(_session_time(index, "09:30"), name="open_time")
+
+
+# ----------------------------------------------------------------- instruments
+def etf_instrument(symbol: str = DEFAULT_SYMBOL) -> Equity:
+    """Nautilus ``Equity`` for a US ETF: USD, cent ticks, whole shares."""
+    venue = ETF_VENUES[_check_symbol(symbol)]
+    return Equity(
+        instrument_id=InstrumentId.from_str(f"{symbol}.{venue}"),
         raw_symbol=Symbol(symbol),
-        base_currency=Currency.from_str(base),
-        quote_currency=Currency.from_str("USDT"),
-        price_precision=price_prec,
-        size_precision=size_prec,
-        price_increment=Price(10**-price_prec, price_prec),
-        size_increment=Quantity(10**-size_prec, size_prec),
+        currency=Currency.from_str("USD"),
+        price_precision=PRICE_PRECISION,
+        price_increment=Price(0.01, PRICE_PRECISION),
+        lot_size=Quantity(1, 0),
         ts_event=0,
         ts_init=0,
-        max_quantity=Quantity(9_000_000, size_prec),
-        min_quantity=Quantity(10**-size_prec, size_prec),
-        min_notional=Money(10, Currency.from_str("USDT")),
     )
 
 
-def bar_type_for(symbol: str, interval: str = "1d") -> BarType:
-    """Nautilus ``BarType`` for a Binance kline interval such as ``1d`` or ``4h``."""
+def bar_type_for(symbol: str = DEFAULT_SYMBOL, interval: str = "1d") -> BarType:
+    """Nautilus ``BarType`` for an ETF, e.g. ``SPY.ARCA-1-DAY-LAST-EXTERNAL``."""
     units = {"m": "MINUTE", "h": "HOUR", "d": "DAY"}
     step, unit = int(interval[:-1]), units[interval[-1]]
-    return BarType.from_str(f"{symbol}.BINANCE-{step}-{unit}-LAST-EXTERNAL")
+    venue = ETF_VENUES[_check_symbol(symbol)]
+    return BarType.from_str(f"{symbol}.{venue}-{step}-{unit}-LAST-EXTERNAL")
 
 
-def fee_model(cost_rate: float | Decimal = TAKER_FEE) -> MakerTakerFeeModel:
-    """Maker/taker fee model charging ``cost_rate`` per side.
-
-    Use ``TAKER_FEE + slippage`` to fold an estimated slippage/spread cost into
-    every fill. A simple, conservative proxy for execution cost on liquid pairs.
-    """
+def fee_model(cost_rate: float | Decimal = DEFAULT_COST_RATE) -> MakerTakerFeeModel:
+    """Fee model charging ``cost_rate`` of notional per side (commission + slippage)."""
     rate = Decimal(str(cost_rate))
     return MakerTakerFeeModel(maker_rate=rate, taker_rate=rate)
 
 
-def btcusdt_instrument() -> CurrencyPair:
-    """Return the Binance BTCUSDT spot ``CurrencyPair`` (price precision 2, size precision 6).
+# ------------------------------------------------------------------ conversion
+def to_nautilus_bars(df: pd.DataFrame, instrument: Equity, bar_type: BarType | None = None) -> list[Bar]:
+    """Daily bars stamped at the session close (16:00 ET)."""
+    bar_type = bar_type or bar_type_for(str(instrument.raw_symbol))
+    if bar_type.instrument_id != instrument.id:
+        raise ValueError(f"bar_type {bar_type} does not match instrument {instrument.id}")
+    ts = [int(t.value) for t in bar_close_times(df)]  # Timestamp.value is always nanoseconds
+    bars = []
+    for t, (o, h, lo, c, v) in zip(ts, df[["open", "high", "low", "close", "volume"]].itertuples(index=False)):
+        bars.append(
+            Bar(
+                bar_type,
+                instrument.make_price(o),
+                instrument.make_price(h),
+                instrument.make_price(lo),
+                instrument.make_price(c),
+                Quantity(max(v, 0.0), 0),
+                t,
+                t,
+            ),
+        )
+    return bars
 
-    Note: v2 instruments have no fee fields; pair this with :func:`btcusdt_fee_model`.
-    """
-    return TestInstrumentProvider.btcusdt_binance()
 
-
-def btcusdt_fee_model() -> MakerTakerFeeModel:
-    """Return a maker 0.1% / taker 0.1% fee model for the simulated Binance venue."""
-    return MakerTakerFeeModel(maker_rate=MAKER_FEE, taker_rate=TAKER_FEE)
-
-
-def to_nautilus_bars(
+def open_quotes(
     df: pd.DataFrame,
-    instrument: CurrencyPair,
-    bar_type: BarType | str | None = None,
-) -> list[Bar]:
-    """Convert a kline DataFrame into Nautilus ``Bar`` objects.
+    instrument: Equity,
+    half_spread: float = DEFAULT_HALF_SPREAD,
+    size: float = 1_000_000,
+) -> list[QuoteTick]:
+    """One quote per session at the 09:30 ET open: bid/ask = open * (1 -/+ half_spread).
 
-    Bars are constructed directly: the v2 ``BarDataWrangler`` only accepts Arrow
-    record-batch bytes (it requires ``pyarrow``), so it is no simpler than this.
-
-    Timestamps: ``ts_event`` and ``ts_init`` are set to the bar's *close* time
-    (``open_time + bar duration``), not its open, so a backtest never sees a bar
-    before it has completed. See the module docstring.
-
-    Args:
-        df: Output of :func:`load_klines_csv` (UTC ``open_time`` index).
-        instrument: Instrument whose price/size precision is applied.
-        bar_type: Bar type or its string form; defaults to
-            ``BTCUSDT.BINANCE-1-DAY-LAST-EXTERNAL``.
-
-    Returns:
-        Bars in chronological order, prices rounded to ``instrument.price_precision``
-        and volumes to ``instrument.size_precision``.
+    Deep size so a market order fills entirely at the quote (these ETFs are
+    very liquid; the spread term is the modelled cost).
     """
-    bt = BarType.from_str(bar_type or DEFAULT_BAR_TYPE) if not isinstance(bar_type, BarType) else bar_type
-    if bt.instrument_id != instrument.id:
-        raise ValueError(f"Bar type {bt} does not match instrument {instrument.id}")
-
-    duration = _bar_duration(df)
-    close_ns = (df.index + duration).as_unit("ns").asi8
-
-    make_px, make_qty = instrument.make_price, instrument.make_qty
-    return [
-        Bar(
-            bt,
-            make_px(o),
-            make_px(h),
-            make_px(lo),
-            make_px(c),
-            make_qty(v),
-            int(ts),
-            int(ts),
-        )
-        for o, h, lo, c, v, ts in zip(
-            df["open"], df["high"], df["low"], df["close"], df["volume"], close_ns, strict=True
-        )
-    ]
-
-
-def _bar_duration(df: pd.DataFrame) -> pd.Timedelta:
-    """Infer the bar duration from ``close_time`` (Binance close is end-of-bar minus 1 unit)."""
-    if len(df) == 0:
-        return pd.Timedelta(days=1)
-    span = df["close_time"].iloc[0] - df.index[0]
-    # Binance close_time = open_time + duration - 1ms (or 1us); round up to whole seconds.
-    return span.ceil("s")
+    quotes = []
+    for t, o in zip(bar_open_times(df), df["open"]):
+        bid = instrument.make_price(o * (1 - half_spread))
+        ask = instrument.make_price(o * (1 + half_spread))
+        if ask.as_double() <= bid.as_double():
+            ask = instrument.make_price(bid.as_double() + 0.01)
+        ts = int(t.value)
+        quotes.append(QuoteTick(instrument.id, bid, ask, Quantity(size, 0), Quantity(size, 0), ts, ts))
+    return quotes
 
 
 def _main() -> None:
-    """Verify the downloaded 2025 BTCUSDT daily data end to end."""
-    raw_dir = Path(__file__).resolve().parent.parent / "data" / "raw"
-    df = load_klines_csv(raw_dir, start="2025-01-01", end="2025-12-31")
-    summary = validate_daily(df)
-    print("DataFrame summary:", summary)
-    assert summary["rows"] == 365, summary
-    assert summary["first"] == "2025-01-01" and summary["last"] == "2025-12-31", summary
-
-    instrument = btcusdt_instrument()
-    bars = to_nautilus_bars(df, instrument)
-    assert len(bars) == len(df)
-    first, last = bars[0], bars[-1]
-    print(f"Instrument: {instrument}")
-    print(f"Fee model: {btcusdt_fee_model()} (maker={MAKER_FEE}, taker={TAKER_FEE})")
-    print(f"Bars: {len(bars)}  type={first.bar_type}")
-    print(f"First bar: {first}  ts_event={pd.Timestamp(first.ts_event, unit='ns', tz='UTC')}")
-    print(f"Last bar:  {last}  ts_event={pd.Timestamp(last.ts_event, unit='ns', tz='UTC')}")
-    assert pd.Timestamp(first.ts_event, unit="ns", tz="UTC") == pd.Timestamp("2025-01-02", tz="UTC")
-    assert float(first.close) == round(summary["first_close"], 2)
-    assert float(last.close) == round(summary["last_close"], 2)
-    print("OK: all checks passed")
+    """Verify every downloaded ETF file (``python -m src.data_loader``)."""
+    raw = Path(__file__).resolve().parents[1] / "data" / "raw"
+    for symbol in DEFAULT_SYMBOLS:
+        try:
+            df = load_bars(raw, symbol)
+        except FileNotFoundError as exc:
+            print(f"{symbol}: {exc}")
+            continue
+        summary = validate_daily(df)
+        bars = to_nautilus_bars(df, etf_instrument(symbol))
+        print(f"{symbol}: {summary} -> {len(bars)} bars, first close stamped "
+              f"{pd.Timestamp(bars[0].ts_event, unit='ns', tz='UTC').tz_convert(NEW_YORK)}")
 
 
 if __name__ == "__main__":

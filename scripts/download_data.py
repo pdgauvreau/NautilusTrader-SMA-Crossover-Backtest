@@ -1,193 +1,77 @@
-"""Download Binance spot kline archives from the public data.binance.vision bucket.
+"""Download daily ETF bars from Alpaca's Market Data API into data/raw/<SYMBOL>_1d.csv.
 
-Fetches one monthly zip per month of the requested year, verifies it against the
-published ``.CHECKSUM`` (SHA256) file when one exists, and extracts the single
-expected CSV into ``data/raw/``. Files already present are skipped unless
-``--force`` is given.
+Needs a free Alpaca account. Put your keys in a ``.env`` file at the repo root
+(git-ignored; see ``.env.example``) or in environment variables. They are never
+printed::
 
-Usage::
+    ALPACA_API_KEY_ID=...
+    ALPACA_API_SECRET_KEY=...
 
-    python scripts/download_data.py                       # BTCUSDT 1d 2025
-    python scripts/download_data.py --symbol ETHUSDT --interval 1h --year 2024
-    python scripts/download_data.py --force
+Paper-trading keys work for market data too. Only market data is read; this
+script cannot place orders.
 
-Only public archive files are downloaded; no API keys or accounts are used.
+Prices are split- and dividend-adjusted (``adjustment=all``) so returns include
+dividends. ``--feed sip`` (consolidated tape) is the default; use ``--feed iex``
+if your plan rejects SIP.
+
+Usage:
+    python scripts/download_data.py                       # SPY QQQ IWM, 2016-01-01 to latest
+    python scripts/download_data.py --symbols SPY --start 2020-01-01
 """
 
 from __future__ import annotations
 
 import argparse
-import hashlib
-import io
-import re
 import sys
-import zipfile
+from datetime import date
 from pathlib import Path
 
-import requests
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
-BASE_URL = "https://data.binance.vision/data/spot/monthly/klines"
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_OUT_DIR = PROJECT_ROOT / "data" / "raw"
-TIMEOUT_S = 30
+from src.alpaca_data import SYMBOL_PATTERN  # noqa: E402
+from src.alpaca_data import open_session  # noqa: E402
+from src.alpaca_data import update_csv  # noqa: E402
+from src.data_loader import DEFAULT_SYMBOLS  # noqa: E402
 
-_SAFE_TOKEN = re.compile(r"^[A-Za-z0-9]+$")
-
-
-def archive_name(symbol: str, interval: str, year: int, month: int) -> str:
-    """Return the archive base name, e.g. ``BTCUSDT-1d-2025-01``."""
-    return f"{symbol}-{interval}-{year:04d}-{month:02d}"
-
-
-def fetch(session: requests.Session, url: str) -> bytes | None:
-    """GET ``url`` and return the body, or ``None`` on HTTP 404."""
-    resp = session.get(url, timeout=TIMEOUT_S)
-    if resp.status_code == 404:
-        return None
-    resp.raise_for_status()
-    return resp.content
-
-
-def parse_checksum(text: str, expected_file: str) -> str:
-    """Extract the SHA256 hex digest from a Binance ``.CHECKSUM`` file body.
-
-    The file format is ``<sha256>  <filename>``.
-    """
-    parts = text.strip().split()
-    if not parts or not re.fullmatch(r"[0-9a-fA-F]{64}", parts[0]):
-        raise ValueError(f"Malformed checksum file for {expected_file}: {text[:100]!r}")
-    if len(parts) > 1 and parts[1] != expected_file:
-        raise ValueError(f"Checksum refers to {parts[1]!r}, expected {expected_file!r}")
-    return parts[0].lower()
-
-
-def extract_member(zip_bytes: bytes, member: str, out_dir: Path) -> Path:
-    """Extract only ``member`` from the zip into ``out_dir``.
-
-    The archive is treated as untrusted data: no other members are written and
-    the output path is built from the expected name, never from archive metadata,
-    so path traversal is impossible.
-    """
-    with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
-        if member not in zf.namelist():
-            raise ValueError(f"Expected member {member!r} not in archive: {zf.namelist()}")
-        data = zf.read(member)
-    target = (out_dir / Path(member).name).resolve()
-    if target.parent != out_dir.resolve():
-        raise ValueError(f"Refusing to write outside {out_dir}: {target}")
-    tmp = target.with_suffix(target.suffix + ".part")
-    tmp.write_bytes(data)
-    tmp.replace(target)
-    return target
-
-
-def download_month(
-    session: requests.Session,
-    symbol: str,
-    interval: str,
-    year: int,
-    month: int,
-    out_dir: Path,
-    force: bool = False,
-) -> str:
-    """Download, verify and extract one monthly archive.
-
-    Returns a short status string: ``"skipped"``, ``"downloaded"`` or ``"missing"``.
-    """
-    name = archive_name(symbol, interval, year, month)
-    csv_name, zip_name = f"{name}.csv", f"{name}.zip"
-    target = out_dir / csv_name
-    if target.exists() and not force:
-        return "skipped"
-
-    url = f"{BASE_URL}/{symbol}/{interval}/{zip_name}"
-    zip_bytes = fetch(session, url)
-    if zip_bytes is None:
-        return "missing"
-
-    checksum_body = fetch(session, f"{url}.CHECKSUM")
-    if checksum_body is not None:
-        expected = parse_checksum(checksum_body.decode("utf-8", errors="replace"), zip_name)
-        actual = hashlib.sha256(zip_bytes).hexdigest()
-        if actual != expected:
-            raise ValueError(f"SHA256 mismatch for {zip_name}: {actual} != {expected}")
-    else:
-        print(f"  warning: no CHECKSUM published for {zip_name}; unverified", file=sys.stderr)
-
-    extract_member(zip_bytes, csv_name, out_dir)
-    return "downloaded"
+DEFAULT_OUT_DIR = ROOT / "data" / "raw"
+DEFAULT_START = "2016-01-01"
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Parse command-line arguments."""
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument(
-        "--symbol", "--symbols", dest="symbols", nargs="+", default=["BTCUSDT"],
-        help="One or more spot symbols (default: BTCUSDT)",
-    )
-    p.add_argument("--interval", default="1d", help="Kline interval (default: 1d)")
-    p.add_argument("--year", type=int, default=None, help="Single calendar year (default: 2025)")
-    p.add_argument("--start-year", type=int, default=None, help="First year of a range (inclusive)")
-    p.add_argument("--end-year", type=int, default=None, help="Last year of a range (inclusive)")
-    p.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR, help="Output directory")
-    p.add_argument("--force", action="store_true", help="Re-download files already present")
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--symbols", nargs="+", default=list(DEFAULT_SYMBOLS))
+    p.add_argument("--start", default=DEFAULT_START, help="first session date (YYYY-MM-DD)")
+    p.add_argument("--end", default=None, help="last session date (default: latest available)")
+    p.add_argument("--feed", choices=("sip", "iex"), default="sip")
+    p.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR)
     args = p.parse_args(argv)
-    for value in (*args.symbols, args.interval):
-        if not _SAFE_TOKEN.match(value):
-            p.error(f"symbol/interval must be alphanumeric, got {value!r}")
-    if args.year is not None and (args.start_year or args.end_year):
-        p.error("use either --year or --start-year/--end-year")
-    if args.year is None and args.start_year is None and args.end_year is None:
-        args.year = 2025
-    if args.year is not None:
-        args.start_year = args.end_year = args.year
-    args.start_year = args.start_year or args.end_year
-    args.end_year = args.end_year or args.start_year
-    if args.start_year > args.end_year:
-        p.error("--start-year must not be after --end-year")
+    args.symbols = [s.upper() for s in args.symbols]
+    bad = [s for s in args.symbols if not SYMBOL_PATTERN.match(s)]
+    if bad:
+        p.error(f"invalid symbol(s): {bad}")
+    for value in (args.start, args.end):
+        if value is not None:
+            try:
+                date.fromisoformat(value)
+            except ValueError:
+                p.error(f"dates must be YYYY-MM-DD, got {value!r}")
     return args
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Entry point. Returns a process exit code.
-
-    Months before a symbol's first available archive are reported as
-    "not listed yet" (e.g. SOLUSDT before its 2020 listing), not as errors.
-    Missing months after data has started are errors.
-    """
     args = parse_args(argv)
-    out_dir: Path = args.out_dir
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    missing: list[str] = []
-    with requests.Session() as session:
-        session.headers["User-Agent"] = "kline-archive-downloader/1.0"
+    failed = []
+    with open_session() as session:
         for symbol in args.symbols:
-            seen_data = False
-            not_listed = 0
-            for year in range(args.start_year, args.end_year + 1):
-                for month in range(1, 13):
-                    name = archive_name(symbol, args.interval, year, month)
-                    status = download_month(
-                        session, symbol, args.interval, year, month, out_dir, args.force
-                    )
-                    if status == "missing" and not seen_data:
-                        not_listed += 1
-                        continue
-                    seen_data = True
-                    print(f"{name}: {status}")
-                    if status == "missing":
-                        missing.append(name)
-            if not_listed:
-                print(f"{symbol}: {not_listed} leading month(s) not listed yet, skipped")
-            if not seen_data:
-                missing.append(f"{symbol} (no data at all)")
-
-    if missing:
-        print(f"{len(missing)} archive(s) not available: {', '.join(missing)}", file=sys.stderr)
-        return 1
-    return 0
+            df = update_csv(session, symbol, args.out_dir, args.start, args.end, args.feed)
+            if df.empty:
+                print(f"{symbol}: no bars returned", file=sys.stderr)
+                failed.append(symbol)
+                continue
+            print(f"{symbol}: {len(df)} sessions {df['date'].iloc[0]} -> {df['date'].iloc[-1]}")
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

@@ -20,6 +20,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")  # Windows consoles default to cp1252
 
 import matplotlib  # noqa: E402
 
@@ -27,7 +29,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import pandas as pd  # noqa: E402
 
-from src.data_loader import load_klines_csv  # noqa: E402
+from src.data_loader import DEFAULT_COST_RATE  # noqa: E402
+from src.data_loader import DEFAULT_SYMBOLS  # noqa: E402
+from src.data_loader import load_bars  # noqa: E402
 from src.ml.features import build_dataset  # noqa: E402
 from src.ml.sizing import HORIZON  # noqa: E402
 from src.ml.sizing import SCHEMES  # noqa: E402
@@ -45,10 +49,10 @@ PLOTTED = ("fixed", "vol_target", "ml_size", "ml_size_shuffled", "bnh")
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--symbols", nargs="+", default=["BTCUSDT", "ETHUSDT", "SOLUSDT"])
+    p.add_argument("--symbols", nargs="+", default=list(DEFAULT_SYMBOLS))
     p.add_argument("--raw-dir", type=Path, default=ROOT / "data" / "raw")
     p.add_argument("--report-dir", type=Path, default=ROOT / "reports" / "ml_sizing")
-    p.add_argument("--slippage", type=float, default=0.0005)
+    p.add_argument("--cost", type=float, default=DEFAULT_COST_RATE, help="cost per side (fraction)")
     return p.parse_args(argv)
 
 
@@ -73,7 +77,7 @@ def plot_equity(res, path: Path) -> None:
         ax.plot(eq.index, eq, color=COLORS[key], lw=1.1 if key in ("bnh", "ml_size_shuffled") else 1.6,
                 ls="--" if key == "bnh" else ("-." if key == "ml_size_shuffled" else "-"), label=label)
     ax.set_yscale("log")
-    ax.set_ylabel("Equity (USDT, log scale)")
+    ax.set_ylabel("Equity (USD, log scale)")
     ax.set_title(f"{res.symbol}: SMA 10/50 timing, different position sizing (out-of-sample)")
     ax.grid(alpha=0.25, which="both")
     ax.legend(frameon=False, fontsize=8, loc="upper left")
@@ -104,13 +108,13 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     out = args.report_dir
     out.mkdir(parents=True, exist_ok=True)
-    settings = ResearchSettings(cost_rate=0.001 + args.slippage)
+    settings = ResearchSettings(cost_rate=args.cost)
     t0 = time.time()
 
     frames = {}
     for s in args.symbols:
         try:
-            frames[s] = load_klines_csv(args.raw_dir, symbol=s)
+            frames[s] = load_bars(args.raw_dir, s)
         except FileNotFoundError:
             print(f"{s}: no data, skipping", file=sys.stderr)
     if not frames:

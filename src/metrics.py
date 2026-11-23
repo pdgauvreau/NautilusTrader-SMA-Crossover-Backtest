@@ -1,7 +1,7 @@
 """Performance statistics for an equity curve and a list of trades.
 
 Kept independent of Nautilus so the maths is transparent and unit-testable.
-Crypto trades every day, so annualisation uses 365 periods per year.
+ETFs trade on US market sessions, so annualisation uses 252 periods per year.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-PERIODS_PER_YEAR = 365
+PERIODS_PER_YEAR = 252  # US trading sessions per year
 
 
 @dataclass(frozen=True)

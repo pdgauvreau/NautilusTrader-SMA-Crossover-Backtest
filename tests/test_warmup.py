@@ -25,7 +25,7 @@ def test_uptrend_from_bar_one_does_not_buy_during_warmup(make_bars, instrument, 
     Once warmed up the spread is already positive, so there is no crossover and
     therefore no trade at all, in particular none inside the warmup window.
     """
-    bars = make_bars(30_000.0 + 150.0 * np.arange(120))
+    bars = make_bars(300.0 + 1.5 * np.arange(120))
     out = run_backtest(bars, instrument, config)
 
     assert out.bars_seen == len(bars)

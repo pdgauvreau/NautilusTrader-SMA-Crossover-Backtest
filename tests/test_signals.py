@@ -80,7 +80,7 @@ def test_synthetic_series_crosses_at_expected_indices() -> None:
 
 def test_no_signal_on_first_warmed_up_bar() -> None:
     """A series already in an uptrend when warmup ends yields no signal at all."""
-    closes = pd.Series(30_000.0 + 100.0 * np.arange(120))
+    closes = pd.Series(300.0 + 1.0 * np.arange(120))
     assert _signals_over(closes) == []
 
 
@@ -107,5 +107,6 @@ def test_trade_size_must_be_positive(bar_type, size: float) -> None:
 
 def test_config_defaults(bar_type) -> None:
     cfg = SmaCrossoverConfig(bar_type=bar_type)
-    assert (cfg.fast_period, cfg.slow_period, cfg.trade_size, cfg.close_on_stop) == (10, 50, 0.5, True)
+    assert (cfg.fast_period, cfg.slow_period, cfg.trade_size, cfg.close_on_stop) == (10, 50, 100, True)
+    assert cfg.execute_at_open is False
     assert cfg.bar_type == bar_type

@@ -13,7 +13,7 @@ thresholds below were fixed before looking at results:
 
 ==================  =========================================================
 fixed               99% of cash on every entry (the Stage 1 strategy)
-vol_target          99% x min(1, 60% / annualised 30-day vol). No ML; a control
+vol_target          99% x min(1, 15% / annualised 30-day vol). No ML; a control
 ml_size             99% x clip((p - 0.25) / 0.5, 0.25, 1): p=0.75 -> full size
 ml_gate             99% if p >= 0.5, otherwise skip the entry
 ml_size_logreg      ml_size with logistic regression
@@ -41,11 +41,11 @@ from src.research import ResearchSettings
 
 HORIZON = 20
 MAX_FRACTION = 0.99
-VOL_TARGET = 0.60  # annualised
+VOL_TARGET = 0.15  # annualised; roughly SPY's long-run volatility
 SCHEMES = ("fixed", "vol_target", "ml_size", "ml_gate", "ml_size_logreg", "ml_size_shuffled")
 SCHEME_LABELS = {
     "fixed": "Fixed 99%",
-    "vol_target": "Vol target 60% (no ML)",
+    "vol_target": "Vol target 15% (no ML)",
     "ml_size": "ML size (LightGBM)",
     "ml_gate": "ML gate (LightGBM)",
     "ml_size_logreg": "ML size (logistic reg.)",
@@ -63,7 +63,7 @@ def gate_fraction(p: float) -> float:
 
 
 def vol_target_fraction(vol_30_daily: float) -> float:
-    ann = vol_30_daily * np.sqrt(365)
+    ann = vol_30_daily * np.sqrt(252)
     return MAX_FRACTION * float(min(1.0, VOL_TARGET / ann)) if ann > 0 else MAX_FRACTION
 
 

@@ -23,7 +23,7 @@ SCRIPT = ROOT / "scripts" / "run_backtest.py"
 def synthetic_run(make_bars, instrument, bar_type):
     from src.strategies.sma_crossover import SmaCrossoverConfig
 
-    bars = make_bars(sine_closes(300, period=100, amplitude=5_000.0))
+    bars = make_bars(sine_closes(300, period=100, amplitude=50.0))
     out = run_backtest(bars, instrument, SmaCrossoverConfig(bar_type=bar_type), STARTING_CAPITAL)
     return bars, out
 
@@ -77,18 +77,37 @@ def _load_script():
     return module
 
 
-@pytest.mark.skipif(not any(RAW_DIR.glob("BTCUSDT-1d-*.csv")), reason="no BTCUSDT CSVs in data/raw/")
+@pytest.mark.skipif(not (RAW_DIR / "SPY_1d.csv").exists(), reason="no SPY data in data/raw/ (needs Alpaca keys)")
 def test_run_backtest_script_end_to_end(tmp_path: Path) -> None:
     script = _load_script()
     report_dir = tmp_path / "reports"
 
-    assert script.main(["--raw-dir", str(RAW_DIR), "--report-dir", str(report_dir)]) == 0
+    assert script.main(["--symbols", "SPY", "--raw-dir", str(RAW_DIR), "--report-dir", str(report_dir)]) == 0
 
-    for name in ("summary.md", "metrics.json", "trades.csv", "equity_curve.png"):
+    for name in ("SPY_summary.md", "SPY_metrics.json", "SPY_trades.csv", "SPY_equity_curve.png", "summary.md"):
         path = report_dir / name
         assert path.is_file() and path.stat().st_size > 0, name
 
-    metrics = json.loads((report_dir / "metrics.json").read_text(encoding="utf-8"))
+    metrics = json.loads((report_dir / "SPY_metrics.json").read_text(encoding="utf-8"))
     assert {"strategy", "buy_and_hold", "parameters"} <= metrics.keys()
     assert metrics["parameters"]["fast"] == 10 and metrics["parameters"]["slow"] == 50
-    assert "# Backtest summary" in (report_dir / "summary.md").read_text(encoding="utf-8")
+    assert "# SPY backtest summary" in (report_dir / "SPY_summary.md").read_text(encoding="utf-8")
+
+
+def test_run_backtest_script_on_synthetic_csv(tmp_path: Path) -> None:
+    """End-to-end through the CLI with a synthetic SPY CSV in the real Alpaca format."""
+    import numpy as np
+    import pandas as pd
+
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    days = pd.bdate_range("2020-01-01", periods=400)
+    close = 300 + 30 * np.sin(np.arange(400) / 15)
+    frame = pd.DataFrame({"date": days.strftime("%Y-%m-%d"), "open": close, "high": close * 1.01,
+                          "low": close * 0.99, "close": close, "volume": 1e6, "vwap": close, "trade_count": 100})
+    frame.to_csv(raw / "SPY_1d.csv", index=False)
+    report_dir = tmp_path / "reports"
+    assert _load_script().main(["--symbols", "SPY", "--raw-dir", str(raw), "--report-dir", str(report_dir)]) == 0
+    metrics = json.loads((report_dir / "SPY_metrics.json").read_text(encoding="utf-8"))
+    assert metrics["strategy"]["num_trades"] > 0
+    assert (report_dir / "SPY_equity_curve.png").stat().st_size > 0

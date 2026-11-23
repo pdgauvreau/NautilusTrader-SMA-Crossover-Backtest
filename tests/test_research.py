@@ -9,13 +9,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.data_loader import binance_spot_instrument
 from src.data_loader import bar_type_for
+from src.data_loader import etf_instrument
 from src.pipeline import run_pipeline
 from src.research import ResearchSettings
 from src.research import param_grid
 from src.research import random_schedule
 from src.research import walk_forward
+from tests.conftest import close_times
 from tests.conftest import make_ohlcv
 from tests.conftest import sine_closes
 from tests.conftest import step_closes
@@ -42,12 +43,13 @@ def test_position_fraction_sizes_by_cash() -> None:
     res = run_pipeline(df, 10, 50, capital=100_000, position_fraction=0.5)
     trade = res.trades.iloc[0]
     notional = trade["entry_px"] * trade["quantity"]
-    assert notional == pytest.approx(50_000, rel=1e-3)
+    # Whole shares, bought at the next open's ask: within one share of half the cash.
+    assert 50_000 - trade["entry_px"] <= notional <= 50_000
 
 
 def test_trade_start_blocks_earlier_trades_and_trims_curves() -> None:
     df = make_ohlcv(sine_closes(300))
-    start = df.index[150] + pd.Timedelta(days=1)
+    start = close_times(df)[150]
     res = run_pipeline(df, 10, 50, position_fraction=0.99, trade_start=start)
     assert res.closes.index[0] == start
     assert res.equity.index[0] == start
@@ -56,8 +58,8 @@ def test_trade_start_blocks_earlier_trades_and_trims_curves() -> None:
 
 def test_enter_if_above_on_start_joins_existing_uptrend() -> None:
     # Prices rise steadily, so fast > slow long before trade_start and no new cross happens.
-    df = make_ohlcv(np.linspace(20_000, 40_000, 200))
-    start = df.index[120] + pd.Timedelta(days=1)
+    df = make_ohlcv(np.linspace(200, 400, 200))
+    start = close_times(df)[120]
     waits = run_pipeline(df, 10, 50, position_fraction=0.99, trade_start=start)
     joins = run_pipeline(df, 10, 50, position_fraction=0.99, trade_start=start, enter_if_above_on_start=True)
     assert waits.output.signals == []
@@ -74,22 +76,23 @@ def test_config_rejects_bad_research_options(bar_type) -> None:
 
 
 # ------------------------------------------------------------------- instruments
-@pytest.mark.parametrize(("symbol", "price_prec"), [("BTCUSDT", 2), ("ETHUSDT", 2), ("SOLUSDT", 4)])
-def test_binance_spot_instruments(symbol: str, price_prec: int) -> None:
-    inst = binance_spot_instrument(symbol)
-    assert str(inst.id) == f"{symbol}.BINANCE"
-    assert inst.price_precision == price_prec
-    assert str(bar_type_for(symbol)) == f"{symbol}.BINANCE-1-DAY-LAST-EXTERNAL"
+@pytest.mark.parametrize(("symbol", "venue"), [("SPY", "ARCA"), ("QQQ", "NASDAQ"), ("IWM", "ARCA")])
+def test_etf_instruments(symbol: str, venue: str) -> None:
+    inst = etf_instrument(symbol)
+    assert str(inst.id) == f"{symbol}.{venue}"
+    assert inst.price_precision == 2 and inst.size_precision == 0
+    assert str(inst.quote_currency) == "USD"
+    assert str(bar_type_for(symbol)) == f"{symbol}.{venue}-1-DAY-LAST-EXTERNAL"
 
 
 def test_unknown_symbol_raises() -> None:
     with pytest.raises(ValueError):
-        binance_spot_instrument("DOGEUSDT")
+        etf_instrument("BTCUSDT")
 
 
 def test_cost_rate_increases_fees() -> None:
     df = make_ohlcv(sine_closes(300))
-    cheap = run_pipeline(df, 10, 50, position_fraction=0.99, cost_rate=0.001)
+    cheap = run_pipeline(df, 10, 50, position_fraction=0.99, cost_rate=0.0001)
     dear = run_pipeline(df, 10, 50, position_fraction=0.99, cost_rate=0.003)
     assert dear.strategy_stats.final_equity < cheap.strategy_stats.final_equity
     assert dear.buy_and_hold_stats.final_equity < cheap.buy_and_hold_stats.final_equity
@@ -116,7 +119,7 @@ def test_random_schedule_rejects_impossible_layout() -> None:
 def test_walk_forward_folds_are_sequential_and_out_of_sample() -> None:
     df = make_ohlcv(sine_closes(700, period=60))
     grid = param_grid((5, 10), (20, 30))
-    wf = walk_forward(df, "BTCUSDT", grid, ResearchSettings(), train_bars=200, test_bars=100)
+    wf = walk_forward(df, "SPY", grid, ResearchSettings(), train_bars=200, test_bars=100)
 
     folds = wf.folds
     assert len(folds) >= 3
@@ -132,13 +135,14 @@ def test_walk_forward_folds_are_sequential_and_out_of_sample() -> None:
 
 
 # ------------------------------------------------------------------------ CLI args
-def test_downloader_year_range_args() -> None:
+def test_downloader_args() -> None:
     sys.path.insert(0, str(ROOT / "scripts"))
     import download_data
 
-    args = download_data.parse_args(["--symbols", "BTCUSDT", "ETHUSDT", "--start-year", "2018", "--end-year", "2020"])
-    assert args.symbols == ["BTCUSDT", "ETHUSDT"]
-    assert (args.start_year, args.end_year) == (2018, 2020)
-    assert download_data.parse_args([]).start_year == 2025
+    args = download_data.parse_args(["--symbols", "spy", "QQQ", "--start", "2018-01-01"])
+    assert args.symbols == ["SPY", "QQQ"] and args.start == "2018-01-01"
+    assert download_data.parse_args([]).symbols == ["SPY", "QQQ", "IWM"]
     with pytest.raises(SystemExit):
         download_data.parse_args(["--symbols", "../etc"])
+    with pytest.raises(SystemExit):
+        download_data.parse_args(["--start", "01/02/2020"])
