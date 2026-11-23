@@ -185,7 +185,7 @@ logistic regression 0.516, shuffled-label control 0.497.
   meaningless: whether it predicts 35% or 80%, about 53% of cases go up (see
   [`calibration.png`](reports/ml/calibration.png)).
 - **It loses to the 2-line SMA rule on every asset.** It trades 5× more often,
-  pays more in costs, and spends ~40% of the time out of the market during strong
+  pays more in costs, and sits out a third or more of the days during strong
   bull runs. Changing the thresholds doesn't rescue it, and on ETH the shuffled
   control did better.
 - **This is the expected result, and the reason to build the harness first.**
