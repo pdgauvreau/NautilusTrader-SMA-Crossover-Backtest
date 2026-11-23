@@ -49,6 +49,7 @@ RESEARCH_DIR = _reports("research")
 ML_DIR = _reports("ml")
 SIZING_DIR = _reports("ml_sizing")
 COMPARE_DIR = _reports("compare")
+INTRADAY_REPORT_DIR = _reports("intraday")
 STRATEGY_COLOR = "#1f6feb"
 BNH_COLOR = "#8b949e"
 FAST_COLOR = "#d29922"
@@ -204,8 +205,8 @@ with st.sidebar:
         st.form_submit_button("Run backtest", type="primary", width="stretch")
     st.caption(f"Data: {first_day} → {last_day} ({len(data)} sessions) from Alpaca")
 
-tab_bt, tab_compare, tab_research, tab_ml = st.tabs(
-    ["Backtest", "Strategy comparison", "Stage 1 research", "Stage 2 ML"],
+tab_bt, tab_compare, tab_day, tab_research, tab_ml = st.tabs(
+    ["Backtest", "Strategy comparison", "Day trading", "Stage 1 research", "Stage 2 ML"],
 )
 
 # --------------------------------------------------------------------- backtest tab
@@ -517,4 +518,41 @@ with tab_compare:
         st.image(str(COMPARE_DIR / "sharpe_heatmap.png"), width="stretch")
         if cmp.get("skipped"):
             st.caption("Skipped for too little history: " + ", ".join(f"{s} ({n} sessions)" for s, n in cmp["skipped"]))
+
+
+# ------------------------------------------------------------------ day-trading tab
+with tab_day:
+    day_path = INTRADAY_REPORT_DIR / "results.json"
+    if not day_path.exists():
+        st.info("No day-trading results yet. Generate them with:")
+        st.code("python scripts/download_intraday.py\npython scripts/run_intraday.py", language="bash")
+    else:
+        day = json.loads(day_path.read_text(encoding="utf-8"))
+        rules = day["rules"]
+        costs = day["costs"]
+        st.markdown(
+            f"Classic day-trading rules on **1-minute bars** ({day['period']}), long only. Each rule decides on "
+            f"a minute's close, fills at the next minute's open "
+            f"({(costs['half_spread'] + costs['cost_per_side']) * 1e4:.1f} bp per side all-in) and is flat by "
+            "the close every day. *Buy & hold* keeps the position overnight; *Long every day, open to close* "
+            "holds only during market hours.",
+        )
+        dsym = st.radio("Symbol", list(day["symbols"]), horizontal=True, key="day_symbol")
+        info = day["symbols"][dsym]
+        stats = pd.DataFrame(info["stats"]).T
+        ctrl = info["controls"]
+        st.dataframe(pd.DataFrame({
+            "Return": stats["total_return"].map(pct),
+            "Sharpe": stats["sharpe_ratio"].map(num),
+            "Max drawdown": stats["max_drawdown"].map(pct),
+            "Trades": stats["trades"].astype(int),
+            "Avg trade (bp)": stats["avg_trade_bps"].map(lambda x: f"{x:.1f}"),
+            "Beats random": [f"{ctrl[k]['return_percentile']:.0%}" if k in ctrl else "–" for k in stats.index],
+            "Break-even cost": [f"{ctrl[k]['breakeven_cost_bp']:.1f} bp" if k in ctrl else "–" for k in stats.index],
+        }, index=[rules[k] for k in stats.index]), width="stretch")
+        st.caption("Beats random: share of random schedules (same trades per day and holding times, random days "
+                   "and minutes) with a lower return. Break-even: all-in cost per side at which the average "
+                   "trade nets zero.")
+        st.image(str(INTRADAY_REPORT_DIR / f"{dsym}_intraday_equity.png"), width="stretch")
+        st.image(str(INTRADAY_REPORT_DIR / "cost_stress.png"), width="stretch")
 

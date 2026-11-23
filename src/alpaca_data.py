@@ -48,6 +48,31 @@ def credentials() -> dict[str, str]:
     return {"APCA-API-KEY-ID": os.environ[KEY_VARS[0]], "APCA-API-SECRET-KEY": os.environ[KEY_VARS[1]]}
 
 
+def _get_all_bars(session: requests.Session, params: dict, symbol: str, feed: str) -> list[dict]:
+    """Follow Alpaca's pagination and return every bar for ``symbol``."""
+    rows: list[dict] = []
+    while True:
+        for attempt in range(5):
+            resp = session.get(DATA_URL, params=params, timeout=60)
+            if resp.status_code != 429:
+                break
+            time.sleep(2 ** attempt)  # rate limited: back off
+        if resp.status_code in (401, 403):
+            raise SystemExit(f"Alpaca rejected the request ({resp.status_code}): check your API keys"
+                             + (" or try --feed iex" if feed == "sip" else ""))
+        resp.raise_for_status()
+        payload = resp.json()
+        rows.extend(payload.get("bars", {}).get(symbol, []))
+        token = payload.get("next_page_token")
+        if not token:
+            return rows
+        params["page_token"] = token
+
+
+_RENAME = {"t": "time", "o": "open", "h": "high", "l": "low", "c": "close", "v": "volume", "vw": "vwap",
+           "n": "trade_count"}
+
+
 def fetch_bars(
     session: requests.Session,
     symbol: str,
@@ -60,31 +85,59 @@ def fetch_bars(
               "feed": feed, "limit": 10000, "sort": "asc"}
     if end:
         params["end"] = end
-    rows: list[dict] = []
-    while True:
-        for attempt in range(4):
-            resp = session.get(DATA_URL, params=params, timeout=30)
-            if resp.status_code != 429:
-                break
-            time.sleep(2 ** attempt)  # rate limited: back off
-        if resp.status_code in (401, 403):
-            raise SystemExit(f"Alpaca rejected the request ({resp.status_code}): check your API keys"
-                             + (" or try --feed iex" if feed == "sip" else ""))
-        resp.raise_for_status()
-        payload = resp.json()
-        rows.extend(payload.get("bars", {}).get(symbol, []))
-        token = payload.get("next_page_token")
-        if not token:
-            break
-        params["page_token"] = token
+    rows = _get_all_bars(session, params, symbol, feed)
     if not rows:
         return pd.DataFrame(columns=["date", "open", "high", "low", "close", "volume", "vwap", "trade_count"])
-    df = pd.DataFrame(rows).rename(columns={"t": "time", "o": "open", "h": "high", "l": "low", "c": "close",
-                                            "v": "volume", "vw": "vwap", "n": "trade_count"})
+    df = pd.DataFrame(rows).rename(columns=_RENAME)
     # Alpaca stamps daily bars at midnight New York time; keep the session date.
     df["date"] = pd.to_datetime(df["time"], utc=True).dt.tz_convert("America/New_York").dt.date.astype(str)
     df = drop_unfinished_session(df)
     return df[["date", "open", "high", "low", "close", "volume", "vwap", "trade_count"]]
+
+
+def fetch_minute_bars(
+    session: requests.Session,
+    symbol: str,
+    start: str,
+    end: str | None,
+    feed: str = "sip",
+) -> pd.DataFrame:
+    """Split/dividend-adjusted 1-minute bars during regular hours (09:30-15:59 New York).
+
+    ``time`` is each bar's start (UTC). Extended-hours bars are dropped, and so
+    is today's session until it has closed.
+    """
+    params = {"symbols": symbol, "timeframe": "1Min", "start": start, "adjustment": "all",
+              "feed": feed, "limit": 10000, "sort": "asc"}
+    if end:
+        params["end"] = end
+    rows = _get_all_bars(session, params, symbol, feed)
+    cols = ["time", "open", "high", "low", "close", "volume", "vwap", "trade_count"]
+    if not rows:
+        return pd.DataFrame(columns=cols)
+    df = pd.DataFrame(rows).rename(columns=_RENAME)
+    t = pd.to_datetime(df["time"], utc=True)
+    ny = t.dt.tz_convert("America/New_York")
+    minutes = ny.dt.hour * 60 + ny.dt.minute
+    df = df[(minutes >= 9 * 60 + 30) & (minutes < 16 * 60)].copy()
+    df["time"] = t[df.index]
+    df["date"] = ny[df.index].dt.date.astype(str)
+    df = drop_unfinished_session(df)
+    return df[cols].reset_index(drop=True)
+
+
+def update_minute_csv(session: requests.Session, symbol: str, out_dir: Path, start: str,
+                      end: str | None = None, feed: str = "sip") -> pd.DataFrame:
+    """Download minute bars and write ``<out_dir>/<SYMBOL>_1m.csv.gz`` atomically."""
+    df = fetch_minute_bars(session, symbol, start, end, feed)
+    if df.empty:
+        return df
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / f"{symbol}_1m.csv.gz"
+    tmp = out_dir / f"{symbol}_1m.part.csv.gz"
+    df.to_csv(tmp, index=False, compression="gzip")
+    tmp.replace(path)
+    return df
 
 
 def drop_unfinished_session(df: pd.DataFrame, now: pd.Timestamp | None = None) -> pd.DataFrame:

@@ -155,10 +155,11 @@ Other details:
 | `python scripts/run_research.py` | **Stage 1:** walk-forward, parameter sensitivity, random-entry baseline, cost/delay robustness | `reports/research/` |
 | `python scripts/run_ml.py` | **Stage 2:** can an ML model (LightGBM, logistic regression) time these symbols? | `reports/ml/` |
 | `python scripts/run_compare.py` | Eight classic rules vs buy & hold, same engine and costs | `reports/compare/` |
+| `python scripts/run_intraday.py` | **Stage 4:** day-trading rules on 1-minute bars vs holding | `reports/intraday/` |
 | `python scripts/run_ml_sizing.py` | **Stage 2b:** ML or volatility targeting as a position-size filter | `reports/ml_sizing/` |
 | `streamlit run app/streamlit_app.py` | Interactive dashboard: run backtests and browse research | localhost:8501 |
 | `python scripts/forward_test.py` | **Stage 3:** daily forward test of all eight rules (paper trading) | `paper/forward_status.md` |
-| `python -m pytest -q` | 129 tests | |
+| `python -m pytest -q` | 149 tests | |
 
 ## Strategy comparison: which rule works best?
 
@@ -238,6 +239,7 @@ src/research.py             sensitivity grid, walk-forward, random baseline, cos
 src/strategies/signals.py   eight classic rules as daily long/cash targets (no look-ahead)
 src/strategies/target_position.py   trades any target signal with identical execution
 src/compare.py              runs all rules per symbol; ranking, stability, equal-weight portfolios
+src/intraday/               1-minute data (early closes), day-trading rules, evaluator, luck/cost tests
 src/ml/                     leakage-safe features, purged walk-forward training, evaluation, sizing
 src/paper/forward.py        forward test: replay the strategy from a fixed start date each day
 ```
@@ -258,6 +260,78 @@ Modelling choices:
   conservative for the strategy.
 - **Equity curve** is rebuilt from individual fills (cash + shares × close) at every
   session, and tests reconcile it with realised P&L.
+
+## Stage 4: day trading
+
+Can classic **intraday** rules beat holding once realistic costs are included?
+`scripts/run_intraday.py` tests them on **1-minute bars** (regular hours,
+Nov 2023 to Nov 2026, 767 sessions, about 300,000 bars per symbol) for SPY, QQQ, IWM
+and NVDA.
+
+**Rules** ([`src/intraday/rules.py`](src/intraday/rules.py), standard settings, long only):
+
+| Rule | Idea |
+|---|---|
+| Buy & hold | Held overnight too: the baseline |
+| Long every day, open to close | Market hours only, flat every night |
+| Opening-range breakout | After 10:00, buy a break above the first 30 minutes' high |
+| Intraday momentum | If the day is up by 10:00, hold the last 30 minutes (Gao et al. 2018) |
+| VWAP mean reversion | Buy 2 standard deviations below the day's VWAP, sell back at VWAP |
+| Gap-down fade | After a gap down of more than 0.5%, buy and hold until the gap closes or noon |
+
+**How it's simulated:**
+
+- **Timing:** every rule decides on a minute's close and fills at the **next
+  minute's open**, paying about 1 bp per side all-in (half-spread plus fees).
+- **Flat by the close:** each rule exits before the official close, taken from the
+  exchange calendar, including the 13:00 early closes.
+- **Luck test:** each rule is compared with random trades that have the same
+  number of trades per day and the same holding times.
+- **Cost check:** the **break-even cost** is the cost per side at which the
+  average trade nets zero.
+- **Fast evaluator:** a vectorised version reproduces the Nautilus fills to within
+  0.1 pp and is used for those hundreds of extra runs.
+
+**Results** ([full report](reports/intraday/summary.md)):
+
+| Rule | SPY | QQQ | IWM | NVDA | Beats random (range) | Break-even cost |
+|---|---:|---:|---:|---:|---:|---:|
+| Buy & hold (overnight) | **+69.9%** | **+75.5%** | **+60.7%** | **+205.0%** | – | – |
+| Long every day, open to close | −7.5% | −8.1% | −17.7% | −30.2% | 0% | 0.0–0.7 bp |
+| Opening-range breakout | −8.8% | +9.8% | −3.6% | +24.2% | 64–95% | 0.2–4.1 bp |
+| Intraday momentum | −9.2% | −6.2% | −10.0% | −17.7% | 8–91% | below 0.3 bp |
+| VWAP mean reversion | −32.6% | −32.6% | −40.6% | −51.5% | 0–6% | negative |
+| Gap-down fade | +6.3% | +4.2% | **+26.2%** | +13.4% | 65–100% | 2.8–9.4 bp |
+
+![Day-trading cost stress](reports/intraday/cost_stress.png)
+
+What this says:
+
+- **Holding beat every day-trading rule, by a wide margin.** Over this period the
+  gains came almost entirely **overnight**. Being long only during market hours
+  lost money on all four symbols, even before most costs.
+- **Costs decide everything.** Most rules' average trade earns less than 1 bp
+  before costs, so even tight ETF spreads turn them negative. VWAP reversion wins
+  70% of its trades and still loses 30–50%.
+- **One rule held up: the gap-down fade.** It was positive on all four symbols and,
+  averaged across them, in every year. It beat 65–100% of random timings and survives costs up to roughly
+  3–9 bp per side. On IWM it had a higher Sharpe than holding (1.29 vs 0.84),
+  while invested only 6% of the time.
+  - Treat it as a **lead to test further, not a strategy**: it made about 80–210
+    trades in three years, and 20 rule/symbol tests were run, so one or two good
+    results are expected by chance.
+- **The opening-range breakout** was mixed: it worked on QQQ and NVDA but not on
+  SPY or IWM, which is consistent with luck.
+
+```powershell
+python scripts/download_intraday.py     # ~30 s per symbol, data/raw/intraday/
+```
+
+```powershell
+python scripts/run_intraday.py          # ~2 min, writes reports/intraday/
+```
+
+The dashboard's **Day trading** tab shows these results.
 
 ## Forward test (paper trading)
 

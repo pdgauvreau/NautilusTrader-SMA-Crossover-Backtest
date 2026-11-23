@@ -1,0 +1,1266 @@
+{
+  "period": "2023-11-01 to 2026-11-20",
+  "rules": {
+    "buy_and_hold": "Buy & hold (overnight included)",
+    "hold_intraday": "Long every day, open to close",
+    "orb_30": "Opening-range breakout (30 min)",
+    "intraday_momentum": "Intraday momentum (last 30 min)",
+    "vwap_reversion": "VWAP mean reversion",
+    "gap_fade": "Gap-down fade"
+  },
+  "costs": {
+    "half_spread": 5e-05,
+    "cost_per_side": 5e-05,
+    "grid_bp": [
+      0.0,
+      0.5,
+      1.0,
+      2.0,
+      5.0
+    ]
+  },
+  "data": {
+    "SPY": {
+      "bars": 297870,
+      "sessions": 767,
+      "first": "2023-11-01",
+      "last": "2026-11-20",
+      "median_bars_per_session": 390,
+      "min_bars_per_session": 210
+    },
+    "QQQ": {
+      "bars": 297870,
+      "sessions": 767,
+      "first": "2023-11-01",
+      "last": "2026-11-20",
+      "median_bars_per_session": 390,
+      "min_bars_per_session": 210
+    },
+    "IWM": {
+      "bars": 297870,
+      "sessions": 767,
+      "first": "2023-11-01",
+      "last": "2026-11-20",
+      "median_bars_per_session": 390,
+      "min_bars_per_session": 210
+    },
+    "NVDA": {
+      "bars": 297870,
+      "sessions": 767,
+      "first": "2023-11-01",
+      "last": "2026-11-20",
+      "median_bars_per_session": 390,
+      "min_bars_per_session": 210
+    }
+  },
+  "symbols": {
+    "SPY": {
+      "stats": {
+        "buy_and_hold": {
+          "total_return": 0.6993895120000002,
+          "cagr": 0.19031906296621104,
+          "sharpe_ratio": 1.2277142960408696,
+          "max_drawdown": -0.18532995617786596,
+          "trades": 1,
+          "trades_per_year": 0.3285528031290743,
+          "avg_trade_bps": 7092.816566539894,
+          "win_rate": 1.0,
+          "time_in_market": 1.0
+        },
+        "hold_intraday": {
+          "total_return": -0.07482794499999379,
+          "cagr": -0.025229651834864586,
+          "sharpe_ratio": -0.13836158809650978,
+          "max_drawdown": -0.17289926871304973,
+          "trades": 767,
+          "trades_per_year": 252.0,
+          "avg_trade_bps": -0.7118301329096841,
+          "win_rate": 0.5189048239895697,
+          "time_in_market": 0.9948501023936617
+        },
+        "orb_30": {
+          "total_return": -0.08806508399999813,
+          "cagr": -0.029834093103235815,
+          "sharpe_ratio": -0.5198557620753689,
+          "max_drawdown": -0.11975270922893744,
+          "trades": 556,
+          "trades_per_year": 182.67535853976534,
+          "avg_trade_bps": -1.5933990035025152,
+          "win_rate": 0.4568345323741007,
+          "time_in_market": 0.42691442575620236
+        },
+        "intraday_momentum": {
+          "total_return": -0.09215298399999938,
+          "cagr": -0.03126510200061616,
+          "sharpe_ratio": -1.373725822859149,
+          "max_drawdown": -0.09700566562002111,
+          "trades": 448,
+          "trades_per_year": 147.1916558018253,
+          "avg_trade_bps": -2.170603096151382,
+          "win_rate": 0.45089285714285715,
+          "time_in_market": 0.0436163426998355
+        },
+        "vwap_reversion": {
+          "total_return": -0.32634469400000177,
+          "cagr": -0.1217205184019271,
+          "sharpe_ratio": -1.7257536451582425,
+          "max_drawdown": -0.3384970658395259,
+          "trades": 1291,
+          "trades_per_year": 424.16166883963496,
+          "avg_trade_bps": -3.0392138623118967,
+          "win_rate": 0.7126258714175058,
+          "time_in_market": 0.3272635713566321
+        },
+        "gap_fade": {
+          "total_return": 0.06341214399999973,
+          "cagr": 0.020405734604433956,
+          "sharpe_ratio": 0.4972503449032804,
+          "max_drawdown": -0.0477596092117345,
+          "trades": 84,
+          "trades_per_year": 27.598435462842243,
+          "avg_trade_bps": 7.771549578230963,
+          "win_rate": 0.5595238095238095,
+          "time_in_market": 0.03895994897102763
+        }
+      },
+      "yearly": {
+        "buy_and_hold": {
+          "2023": 0.13695621200000008,
+          "2024": 0.24555457550021975,
+          "2025": 0.1754523016384435,
+          "2026": 0.020895812925152635
+        },
+        "hold_intraday": {
+          "2023": 0.05431799200000009,
+          "2024": -0.036598003916070376,
+          "2025": 0.035079073973661945,
+          "2026": -0.12002604546674134
+        },
+        "orb_30": {
+          "2023": 0.02481747799999967,
+          "2024": -0.042879084269482726,
+          "2025": -0.02227548960116721,
+          "2026": -0.049101830880827646
+        },
+        "intraday_momentum": {
+          "2023": -0.0030558499999984168,
+          "2024": -0.04088876092005789,
+          "2025": -0.018837484170440844,
+          "2026": -0.032319670973495196
+        },
+        "vwap_reversion": {
+          "2023": 0.0015689610000000354,
+          "2024": -0.15941303616336555,
+          "2025": -0.08018640450958747,
+          "2026": -0.13008984086047015
+        },
+        "gap_fade": {
+          "2023": 0.000229600000000163,
+          "2024": -0.019446728031244476,
+          "2025": 0.032860798902152766,
+          "2026": 0.04975735280019533
+        }
+      },
+      "controls": {
+        "hold_intraday": {
+          "return_percentile": 0.0,
+          "sharpe_percentile": 0.47,
+          "random_median_return": -0.0012771527438898422,
+          "breakeven_cost_bp": 0.6441315493374252
+        },
+        "orb_30": {
+          "return_percentile": 0.64,
+          "sharpe_percentile": 0.44,
+          "random_median_return": -0.11207929218394747,
+          "breakeven_cost_bp": 0.20328099086553691
+        },
+        "intraday_momentum": {
+          "return_percentile": 0.65,
+          "sharpe_percentile": 0.77,
+          "random_median_return": -0.10061567620316414,
+          "breakeven_cost_bp": -0.08536434937360339
+        },
+        "vwap_reversion": {
+          "return_percentile": 0.03,
+          "sharpe_percentile": 0.11,
+          "random_median_return": -0.20561201942623697,
+          "breakeven_cost_bp": -0.5197348836905618
+        },
+        "gap_fade": {
+          "return_percentile": 0.99,
+          "sharpe_percentile": 0.87,
+          "random_median_return": -0.0061278611021483576,
+          "breakeven_cost_bp": 4.886457711410926
+        }
+      },
+      "cost_stress": {
+        "hold_intraday": [
+          {
+            "cost_bp_per_side": 0.0,
+            "total_return": 0.0761297067722666,
+            "sharpe_ratio": 0.2525453592651637,
+            "avg_trade_bps": 1.2882630986748504
+          },
+          {
+            "cost_bp_per_side": 0.5,
+            "total_return": -0.0025594021173452886,
+            "sharpe_ratio": 0.056500011644470396,
+            "avg_trade_bps": 0.2881914815382197
+          },
+          {
+            "cost_bp_per_side": 1.0,
+            "total_return": -0.07549802043483989,
+            "sharpe_ratio": -0.13956494173678785,
+            "avg_trade_bps": -0.7118301329096841
+          },
+          {
+            "cost_bp_per_side": 2.0,
+            "total_return": -0.2057730766227539,
+            "sharpe_ratio": -0.5317536746020112,
+            "avg_trade_bps": -2.7117233687249467
+          },
+          {
+            "cost_bp_per_side": 5.0,
+            "total_return": -0.49648076127222596,
+            "sharpe_ratio": -1.7087906409103206,
+            "avg_trade_bps": -8.71020340150881
+          }
+        ],
+        "orb_30": [
+          {
+            "cost_bp_per_side": 0.0,
+            "total_return": 0.017860173131990065,
+            "sharpe_ratio": 0.13248873255349175,
+            "avg_trade_bps": 0.40656198173107383
+          },
+          {
+            "cost_bp_per_side": 0.5,
+            "total_return": -0.036653849557390594,
+            "sharpe_ratio": -0.1934005201143542,
+            "avg_trade_bps": -0.5934435100260103
+          },
+          {
+            "cost_bp_per_side": 1.0,
+            "total_return": -0.08825069824507159,
+            "sharpe_ratio": -0.5192294530923908,
+            "avg_trade_bps": -1.5933990035025152
+          },
+          {
+            "cost_bp_per_side": 2.0,
+            "total_return": -0.18330843481378722,
+            "sharpe_ratio": -1.1700812558865739,
+            "avg_trade_bps": -3.593160010598177
+          },
+          {
+            "cost_bp_per_side": 5.0,
+            "total_return": -0.4130814653434379,
+            "sharpe_ratio": -3.1051195790146546,
+            "avg_trade_bps": -9.591243462985092
+          }
+        ],
+        "intraday_momentum": [
+          {
+            "cost_bp_per_side": 0.0,
+            "total_return": -0.008337888675947425,
+            "sharpe_ratio": -0.10841869233903498,
+            "avg_trade_bps": -0.17072869874720678
+          },
+          {
+            "cost_bp_per_side": 0.5,
+            "total_return": -0.051360238264123725,
+            "sharpe_ratio": -0.7429170326120806,
+            "avg_trade_bps": -1.1706908951464592
+          },
+          {
+            "cost_bp_per_side": 1.0,
+            "total_return": -0.09251807531172829,
+            "sharpe_ratio": -1.374946629690114,
+            "avg_trade_bps": -2.170603096151382
+          },
+          {
+            "cost_bp_per_side": 2.0,
+            "total_return": -0.16955959822659494,
+            "sharpe_ratio": -2.6231963656718835,
+            "avg_trade_bps": -4.170277526961639
+          },
+          {
+            "cost_bp_per_side": 5.0,
+            "total_return": -0.36364823096260646,
+            "sharpe_ratio": -6.111124990204452,
+            "avg_trade_bps": -10.168101319739618
+          }
+        ],
+        "vwap_reversion": [
+          {
+            "cost_bp_per_side": 0.0,
+            "total_return": -0.13166525256064154,
+            "sharpe_ratio": -0.5812399082809623,
+            "avg_trade_bps": -1.0394697673811235
+          },
+          {
+            "cost_bp_per_side": 0.5,
+            "total_return": -0.2358519356644193,
+            "sharpe_ratio": -1.1502670221854878,
+            "avg_trade_bps": -2.039366810372028
+          },
+          {
+            "cost_bp_per_side": 1.0,
+            "total_return": -0.32754204757366334,
+            "sharpe_ratio": -1.7261493513349049,
+            "avg_trade_bps": -3.0392138623118967
+          },
+          {
+            "cost_bp_per_side": 2.0,
+            "total_return": -0.4792464931870988,
+            "sharpe_ratio": -2.893731868897376,
+            "avg_trade_bps": -5.038758008021099
+          },
+          {
+            "cost_bp_per_side": 5.0,
+            "total_return": -0.7581934463758329,
+            "sharpe_ratio": -6.425918406261648,
+            "avg_trade_bps": -11.036191049703008
+          }
+        ],
+        "gap_fade": [
+          {
+            "cost_bp_per_side": 0.0,
+            "total_return": 0.08168260105187208,
+            "sharpe_ratio": 0.6263103545836958,
+            "avg_trade_bps": 9.772915422821852
+          },
+          {
+            "cost_bp_per_side": 0.5,
+            "total_return": 0.07272635993224474,
+            "sharpe_ratio": 0.5629138948199625,
+            "avg_trade_bps": 8.772207477971865
+          },
+          {
+            "cost_bp_per_side": 1.0,
+            "total_return": 0.06384384254630282,
+            "sharpe_ratio": 0.4992887439388283,
+            "avg_trade_bps": 7.771549578230963
+          },
+          {
+            "cost_bp_per_side": 2.0,
+            "total_return": 0.046297570577249925,
+            "sharpe_ratio": 0.37144956659049333,
+            "avg_trade_bps": 5.770383899076968
+          },
+          {
+            "cost_bp_per_side": 5.0,
+            "total_return": -0.004633620443230346,
+            "sharpe_ratio": -0.014968669860214352,
+            "avg_trade_bps": -0.23191244597181934
+          }
+        ]
+      }
+    },
+    "QQQ": {
+      "stats": {
+        "buy_and_hold": {
+          "total_return": 0.7548824220000001,
+          "cagr": 0.2029522059469704,
+          "sharpe_ratio": 0.9851923684619303,
+          "max_drawdown": -0.2258837018608988,
+          "trades": 1,
+          "trades_per_year": 0.3285528031290743,
+          "avg_trade_bps": 7627.422407018105,
+          "win_rate": 1.0,
+          "time_in_market": 1.0
+        },
+        "hold_intraday": {
+          "total_return": -0.08106298600000184,
+          "cagr": -0.027392915699720466,
+          "sharpe_ratio": -0.0841915593543686,
+          "max_drawdown": -0.21429398369685426,
+          "trades": 767,
+          "trades_per_year": 252.0,
+          "avg_trade_bps": -0.5711632605387245,
+          "win_rate": 0.5267275097783573,
+          "time_in_market": 0.9948501023936617
+        },
+        "orb_30": {
+          "total_return": 0.0976497730000001,
+          "cagr": 0.031085055506510972,
+          "sharpe_ratio": 0.37961430025898923,
+          "max_drawdown": -0.12465858737181357,
+          "trades": 529,
+          "trades_per_year": 173.8044328552803,
+          "avg_trade_bps": 2.013797939078324,
+          "win_rate": 0.5066162570888468,
+          "time_in_market": 0.4426897639910028
+        },
+        "intraday_momentum": {
+          "total_return": -0.061799420999998245,
+          "cagr": -0.02074077047102818,
+          "sharpe_ratio": -0.7945848811656441,
+          "max_drawdown": -0.07445864699999727,
+          "trades": 434,
+          "trades_per_year": 142.59191655801826,
+          "avg_trade_bps": -1.4650814332743085,
+          "win_rate": 0.4769585253456221,
+          "time_in_market": 0.04225333199046564
+        },
+        "vwap_reversion": {
+          "total_return": -0.325686849000006,
+          "cagr": -0.12143882191548871,
+          "sharpe_ratio": -1.3389777846251123,
+          "max_drawdown": -0.3489253938368697,
+          "trades": 1215,
+          "trades_per_year": 399.19165580182533,
+          "avg_trade_bps": -3.1716277158890067,
+          "win_rate": 0.7283950617283951,
+          "time_in_market": 0.3201631584248162
+        },
+        "gap_fade": {
+          "total_return": 0.041886817999999826,
+          "cagr": 0.013572898169733394,
+          "sharpe_ratio": 0.2481896151563194,
+          "max_drawdown": -0.0503809959999989,
+          "trades": 134,
+          "trades_per_year": 44.02607561929596,
+          "avg_trade_bps": 3.546297624617436,
+          "win_rate": 0.5746268656716418,
+          "time_in_market": 0.05866988954913217
+        }
+      },
+      "yearly": {
+        "buy_and_hold": {
+          "2023": 0.1645798220000001,
+          "2024": 0.2536617880710632,
+          "2025": 0.2062545363091719,
+          "2026": -0.0035410448348560664
+        },
+        "hold_intraday": {
+          "2023": 0.0622187330000008,
+          "2024": -0.06067613477119704,
+          "2025": 0.03158356728281175,
+          "2026": -0.10720445037885795
+        },
+        "orb_30": {
+          "2023": 0.03615521600000071,
+          "2024": 0.021020609329248874,
+          "2025": 0.10691492035013272,
+          "2026": -0.06267494829009579
+        },
+        "intraday_momentum": {
+          "2023": -0.010653836999999,
+          "2024": -0.038940182355566955,
+          "2025": -0.021308272898260094,
+          "2026": 0.008210198109065425
+        },
+        "vwap_reversion": {
+          "2023": 0.005794095000001054,
+          "2024": -0.17708204282110152,
+          "2025": -0.08717930722769118,
+          "2026": -0.10749525794464687
+        },
+        "gap_fade": {
+          "2023": -0.0023810399999999454,
+          "2024": -0.027291864019905798,
+          "2025": 0.015707429326613953,
+          "2026": 0.05707224858306392
+        }
+      },
+      "controls": {
+        "hold_intraday": {
+          "return_percentile": 0.0,
+          "sharpe_percentile": 0.4,
+          "random_median_return": 0.0007627694060537982,
+          "breakeven_cost_bp": 0.714475536417603
+        },
+        "orb_30": {
+          "return_percentile": 0.95,
+          "sharpe_percentile": 0.95,
+          "random_median_return": -0.10623503573994625,
+          "breakeven_cost_bp": 2.0071500244732308
+        },
+        "intraday_momentum": {
+          "return_percentile": 0.91,
+          "sharpe_percentile": 0.93,
+          "random_median_return": -0.12138051909507447,
+          "breakeven_cost_bp": 0.26744940059948086
+        },
+        "vwap_reversion": {
+          "return_percentile": 0.06,
+          "sharpe_percentile": 0.13,
+          "random_median_return": -0.2077368666234376,
+          "breakeven_cost_bp": -0.5859517423457534
+        },
+        "gap_fade": {
+          "return_percentile": 0.86,
+          "sharpe_percentile": 0.76,
+          "random_median_return": -0.006796009121717572,
+          "breakeven_cost_bp": 2.77351481429799
+        }
+      },
+      "cost_stress": {
+        "hold_intraday": [
+          {
+            "cost_bp_per_side": 0.0,
+            "total_return": 0.06860230920517152,
+            "sharpe_ratio": 0.21345533294032248,
+            "avg_trade_bps": 1.428951072835206
+          },
+          {
+            "cost_bp_per_side": 0.5,
+            "total_return": -0.009536965349277615,
+            "sharpe_ratio": 0.06406882827598896,
+            "avg_trade_bps": 0.4288689044521259
+          },
+          {
+            "cost_bp_per_side": 1.0,
+            "total_return": -0.08196588767117918,
+            "sharpe_ratio": -0.08533261597286163,
+            "avg_trade_bps": -0.5711632605387245
+          },
+          {
+            "cost_bp_per_side": 2.0,
+            "total_return": -0.2113304668820125,
+            "sharpe_ratio": -0.38418032994573587,
+            "avg_trade_bps": -2.571077595329916
+          },
+          {
+            "cost_bp_per_side": 5.0,
+            "total_return": -0.5000057814571882,
+            "sharpe_ratio": -1.2810821967408335,
+            "avg_trade_bps": -8.56962090816587
+          }
+        ],
+        "orb_30": [
+          {
+            "cost_bp_per_side": 0.0,
+            "total_return": 0.2186441359051552,
+            "sharpe_ratio": 0.7541226827140054,
+            "avg_trade_bps": 4.0143000489464615
+          },
+          {
+            "cost_bp_per_side": 0.5,
+            "total_return": 0.15646859400626023,
+            "sharpe_ratio": 0.5663798101051619,
+            "avg_trade_bps": 3.0140239858533757
+          },
+          {
+            "cost_bp_per_side": 1.0,
+            "total_return": 0.09746244866899212,
+            "sharpe_ratio": 0.37851096228540965,
+            "avg_trade_bps": 2.013797939078324
+          },
+          {
+            "cost_bp_per_side": 2.0,
+            "total_return": -0.011679104930048978,
+            "sharpe_ratio": 0.002537374247501069,
+            "avg_trade_bps": 0.013495879492166659
+          },
+          {
+            "cost_bp_per_side": 5.0,
+            "total_return": -0.2782344674114635,
+            "sharpe_ratio": -1.1247063643111697,
+            "avg_trade_bps": -5.986210297610936
+          }
+        ],
+        "intraday_momentum": [
+          {
+            "cost_bp_per_side": 0.0,
+            "total_return": 0.022196478828090394,
+            "sharpe_ratio": 0.29037684003590664,
+            "avg_trade_bps": 0.5348988011989617
+          },
+          {
+            "cost_bp_per_side": 0.5,
+            "total_return": -0.020793596622467936,
+            "sharpe_ratio": -0.25252135171387297,
+            "avg_trade_bps": -0.4651163154987741
+          },
+          {
+            "cost_bp_per_side": 1.0,
+            "total_return": -0.06197763215499552,
+            "sharpe_ratio": -0.7947938261415439,
+            "avg_trade_bps": -1.4650814332743085
+          },
+          {
+            "cost_bp_per_side": 2.0,
+            "total_return": -0.13922756652422308,
+            "sharpe_ratio": -1.8716761590022706,
+            "avg_trade_bps": -3.4648616870432067
+          },
+          {
+            "cost_bp_per_side": 5.0,
+            "total_return": -0.33489248730469345,
+            "sharpe_ratio": -4.946168156743804,
+            "avg_trade_bps": -9.463002864055564
+          }
+        ],
+        "vwap_reversion": [
+          {
+            "cost_bp_per_side": 0.0,
+            "total_return": -0.1433202216919467,
+            "sharpe_ratio": -0.48925090684750866,
+            "avg_trade_bps": -1.1719034846915068
+          },
+          {
+            "cost_bp_per_side": 0.5,
+            "total_return": -0.24041502360252198,
+            "sharpe_ratio": -0.911869403875489,
+            "avg_trade_bps": -2.1717905954846954
+          },
+          {
+            "cost_bp_per_side": 1.0,
+            "total_return": -0.32650921699783575,
+            "sharpe_ratio": -1.3381245038928833,
+            "avg_trade_bps": -3.1716277158890067
+          },
+          {
+            "cost_bp_per_side": 2.0,
+            "total_return": -0.47053829514961787,
+            "sharpe_ratio": -2.1993978201121642,
+            "avg_trade_bps": -5.171152000513088
+          },
+          {
+            "cost_bp_per_side": 5.0,
+            "total_return": -0.7427936144584653,
+            "sharpe_ratio": -4.810718693654032,
+            "avg_trade_bps": -11.168525474825572
+          }
+        ],
+        "gap_fade": [
+          {
+            "cost_bp_per_side": 0.0,
+            "total_return": 0.07002418828061474,
+            "sharpe_ratio": 0.3879926597342269,
+            "avg_trade_bps": 5.54702962859598
+          },
+          {
+            "cost_bp_per_side": 0.5,
+            "total_return": 0.055924209878657205,
+            "sharpe_ratio": 0.3181906541465169,
+            "avg_trade_bps": 4.54663861461614
+          },
+          {
+            "cost_bp_per_side": 1.0,
+            "total_return": 0.04200935328842381,
+            "sharpe_ratio": 0.24829408244673462,
+            "avg_trade_bps": 3.546297624617436
+          },
+          {
+            "cost_bp_per_side": 2.0,
+            "total_return": 0.01472535044613621,
+            "sharpe_ratio": 0.10829380604367776,
+            "avg_trade_bps": 1.5457657015707724
+          },
+          {
+            "cost_bp_per_side": 5.0,
+            "total_return": -0.06292918780749501,
+            "sharpe_ratio": -0.311973546388089,
+            "avg_trade_bps": -4.454629882059474
+          }
+        ]
+      }
+    },
+    "IWM": {
+      "stats": {
+        "buy_and_hold": {
+          "total_return": 0.60703492,
+          "cagr": 0.16866542167817333,
+          "sharpe_ratio": 0.8448855336495581,
+          "max_drawdown": -0.2727942044277376,
+          "trades": 1,
+          "trades_per_year": 0.3285528031290743,
+          "avg_trade_bps": 6139.459945033962,
+          "win_rate": 1.0,
+          "time_in_market": 1.0
+        },
+        "hold_intraday": {
+          "total_return": -0.1774839349999977,
+          "cagr": -0.062177925015538316,
+          "sharpe_ratio": -0.2866630006768268,
+          "max_drawdown": -0.28108692086730336,
+          "trades": 767,
+          "trades_per_year": 252.0,
+          "avg_trade_bps": -1.983300994105273,
+          "win_rate": 0.48891786179921776,
+          "time_in_market": 0.9948501023936617
+        },
+        "orb_30": {
+          "total_return": -0.035886289000002125,
+          "cagr": -0.011935501880628197,
+          "sharpe_ratio": -0.0950548246980117,
+          "max_drawdown": -0.12748981610014842,
+          "trades": 472,
+          "trades_per_year": 155.0769230769231,
+          "avg_trade_bps": -0.5392215807229628,
+          "win_rate": 0.4766949152542373,
+          "time_in_market": 0.3961325410413939
+        },
+        "intraday_momentum": {
+          "total_return": -0.1003450000000018,
+          "cagr": -0.03414587177012096,
+          "sharpe_ratio": -1.2569030607946392,
+          "max_drawdown": -0.10778543752904712,
+          "trades": 414,
+          "trades_per_year": 136.02086049543678,
+          "avg_trade_bps": -2.554675763421548,
+          "win_rate": 0.45893719806763283,
+          "time_in_market": 0.04030617383422298
+        },
+        "vwap_reversion": {
+          "total_return": -0.406059754999999,
+          "cagr": -0.15732026981923375,
+          "sharpe_ratio": -1.7703369856422126,
+          "max_drawdown": -0.41527028186280124,
+          "trades": 1209,
+          "trades_per_year": 397.22033898305085,
+          "avg_trade_bps": -4.24265032655972,
+          "win_rate": 0.6914805624483044,
+          "time_in_market": 0.3602645449357102
+        },
+        "gap_fade": {
+          "total_return": 0.2624468760000018,
+          "cagr": 0.07957756716449826,
+          "sharpe_ratio": 1.2929854792834181,
+          "max_drawdown": -0.046614401293388896,
+          "trades": 144,
+          "trades_per_year": 47.311603650586704,
+          "avg_trade_bps": 16.756930334940492,
+          "win_rate": 0.6111111111111112,
+          "time_in_market": 0.05870010407224628
+        }
+      },
+      "yearly": {
+        "buy_and_hold": {
+          "2023": 0.2215358200000006,
+          "2024": 0.1124528628231325,
+          "2025": 0.12571710336931052,
+          "2026": 0.05052943310323044
+        },
+        "hold_intraday": {
+          "2023": 0.06398537599999998,
+          "2024": -0.14659717653863502,
+          "2025": 0.07132901379195289,
+          "2026": -0.15446461288566438
+        },
+        "orb_30": {
+          "2023": 0.029808726999998703,
+          "2024": -0.04775803575026483,
+          "2025": 0.035031245338283945,
+          "2026": -0.050115251914018444
+        },
+        "intraday_momentum": {
+          "2023": -0.008241769999999038,
+          "2024": -0.06454146793417437,
+          "2025": -0.03172753361277736,
+          "2026": 0.0014933316377117034
+        },
+        "vwap_reversion": {
+          "2023": -0.011575503999999182,
+          "2024": -0.18354000405105164,
+          "2025": -0.1776499621949721,
+          "2026": -0.10503175384270957
+        },
+        "gap_fade": {
+          "2023": -0.0006822130000001536,
+          "2024": 0.09857223626101685,
+          "2025": 0.10747423953973678,
+          "2026": 0.0383583084272312
+        }
+      },
+      "controls": {
+        "hold_intraday": {
+          "return_percentile": 0.0,
+          "sharpe_percentile": 0.38,
+          "random_median_return": -0.0014813052361986045,
+          "breakeven_cost_bp": 0.008300750477808917
+        },
+        "orb_30": {
+          "return_percentile": 0.69,
+          "sharpe_percentile": 0.65,
+          "random_median_return": -0.08403972967304624,
+          "breakeven_cost_bp": 0.7304487721510983
+        },
+        "intraday_momentum": {
+          "return_percentile": 0.53,
+          "sharpe_percentile": 0.61,
+          "random_median_return": -0.10141785497864453,
+          "breakeven_cost_bp": -0.2774294908594168
+        },
+        "vwap_reversion": {
+          "return_percentile": 0.0,
+          "sharpe_percentile": 0.0,
+          "random_median_return": -0.20953239051600847,
+          "breakeven_cost_bp": -1.1215433810712714
+        },
+        "gap_fade": {
+          "return_percentile": 1.0,
+          "sharpe_percentile": 0.99,
+          "random_median_return": -0.002305284715587941,
+          "breakeven_cost_bp": 9.37982204948503
+        }
+      },
+      "cost_stress": {
+        "hold_intraday": [
+          {
+            "cost_bp_per_side": 0.0,
+            "total_return": -0.04291685539402157,
+            "sharpe_ratio": 0.0024007135259457753,
+            "avg_trade_bps": 0.016601500955617833
+          },
+          {
+            "cost_bp_per_side": 0.5,
+            "total_return": -0.11290394040779994,
+            "sharpe_ratio": -0.14221473856786418,
+            "avg_trade_bps": -0.9833747447403182
+          },
+          {
+            "cost_bp_per_side": 1.0,
+            "total_return": -0.17777625222993487,
+            "sharpe_ratio": -0.2868446531111153,
+            "avg_trade_bps": -1.983300994105273
+          },
+          {
+            "cost_bp_per_side": 2.0,
+            "total_return": -0.29364357850888434,
+            "sharpe_ratio": -0.5761478760528926,
+            "avg_trade_bps": -3.983003518826265
+          },
+          {
+            "cost_bp_per_side": 5.0,
+            "total_return": -0.552197287081964,
+            "sharpe_ratio": -1.4444048129282718,
+            "avg_trade_bps": -9.980911570865691
+          }
+        ],
+        "orb_30": [
+          {
+            "cost_bp_per_side": 0.0,
+            "total_return": 0.05845102203184438,
+            "sharpe_ratio": 0.2580031700180722,
+            "avg_trade_bps": 1.4608975443021965
+          },
+          {
+            "cost_bp_per_side": 0.5,
+            "total_return": 0.010129442642464515,
+            "sharpe_ratio": 0.08139446736048464,
+            "avg_trade_bps": 0.4608129800136942
+          },
+          {
+            "cost_bp_per_side": 1.0,
+            "total_return": -0.035988313897186264,
+            "sharpe_ratio": -0.09525081484324598,
+            "avg_trade_bps": -0.5392215807229628
+          },
+          {
+            "cost_bp_per_side": 2.0,
+            "total_return": -0.12200942877195498,
+            "sharpe_ratio": -0.4484868835339849,
+            "avg_trade_bps": -2.5391407065266427
+          },
+          {
+            "cost_bp_per_side": 5.0,
+            "total_return": -0.33673263829691413,
+            "sharpe_ratio": -1.5048150820548802,
+            "avg_trade_bps": -8.53769838856787
+          }
+        ],
+        "intraday_momentum": [
+          {
+            "cost_bp_per_side": 0.0,
+            "total_return": -0.02359381005721084,
+            "sharpe_ratio": -0.2736001930511109,
+            "avg_trade_bps": -0.5548589817188336
+          },
+          {
+            "cost_bp_per_side": 0.5,
+            "total_return": -0.0628052793911329,
+            "sharpe_ratio": -0.7660580218594619,
+            "avg_trade_bps": -1.5547923693072545
+          },
+          {
+            "cost_bp_per_side": 1.0,
+            "total_return": -0.10044386342208877,
+            "sharpe_ratio": -1.256680383450214,
+            "avg_trade_bps": -2.554675763421548
+          },
+          {
+            "cost_bp_per_side": 2.0,
+            "total_return": -0.17125193587891085,
+            "sharpe_ratio": -2.2277068654438197,
+            "avg_trade_bps": -4.554292586212052
+          },
+          {
+            "cost_bp_per_side": 5.0,
+            "total_return": -0.3519860687101424,
+            "sharpe_ratio": -4.98378189564194,
+            "avg_trade_bps": -10.551943601007528
+          }
+        ],
+        "vwap_reversion": [
+          {
+            "cost_bp_per_side": 0.0,
+            "total_return": -0.24597568664837965,
+            "sharpe_ratio": -0.9254357210019362,
+            "avg_trade_bps": -2.2430867621425428
+          },
+          {
+            "cost_bp_per_side": 0.5,
+            "total_return": -0.33104046835420964,
+            "sharpe_ratio": -1.3459137948868545,
+            "avg_trade_bps": -3.242893536867861
+          },
+          {
+            "cost_bp_per_side": 1.0,
+            "total_return": -0.40651220206172034,
+            "sharpe_ratio": -1.7702332774127703,
+            "avg_trade_bps": -4.24265032655972
+          },
+          {
+            "cost_bp_per_side": 2.0,
+            "total_return": -0.5328804493433759,
+            "sharpe_ratio": -2.6284113502259565,
+            "avg_trade_bps": -6.242013965823924
+          },
+          {
+            "cost_bp_per_side": 5.0,
+            "total_return": -0.7722724396898565,
+            "sharpe_ratio": -5.239274341960212,
+            "avg_trade_bps": -12.23890563254735
+          }
+        ],
+        "gap_fade": [
+          {
+            "cost_bp_per_side": 0.0,
+            "total_return": 0.2992666307134564,
+            "sharpe_ratio": 1.4424499497346492,
+            "avg_trade_bps": 18.75964409897006
+          },
+          {
+            "cost_bp_per_side": 0.5,
+            "total_return": 0.28088311726736626,
+            "sharpe_ratio": 1.3680964170684924,
+            "avg_trade_bps": 17.75826217193564
+          },
+          {
+            "cost_bp_per_side": 1.0,
+            "total_return": 0.2627588341396163,
+            "sharpe_ratio": 1.2933301732329938,
+            "avg_trade_bps": 16.756930334940492
+          },
+          {
+            "cost_bp_per_side": 2.0,
+            "total_return": 0.22727343740893424,
+            "sharpe_ratio": 1.1426373857552623,
+            "avg_trade_bps": 14.754416916055542
+          },
+          {
+            "cost_bp_per_side": 5.0,
+            "total_return": 0.12667022493323854,
+            "sharpe_ratio": 0.6827733350170325,
+            "avg_trade_bps": 8.748078429789615
+          }
+        ]
+      }
+    },
+    "NVDA": {
+      "stats": {
+        "buy_and_hold": {
+          "total_return": 2.04972618,
+          "cagr": 0.44246491631435747,
+          "sharpe_ratio": 1.0089591472479422,
+          "max_drawdown": -0.4731656788177512,
+          "trades": 1,
+          "trades_per_year": 0.3285528031290743,
+          "avg_trade_bps": 20711.760651615852,
+          "win_rate": 1.0,
+          "time_in_market": 1.0
+        },
+        "hold_intraday": {
+          "total_return": -0.3024799849999983,
+          "cagr": -0.11161727131313559,
+          "sharpe_ratio": -0.12803851246616857,
+          "max_drawdown": -0.5293951221422233,
+          "trades": 767,
+          "trades_per_year": 252.0,
+          "avg_trade_bps": -1.9309595204876115,
+          "win_rate": 0.5136897001303781,
+          "time_in_market": 0.9948501023936617
+        },
+        "orb_30": {
+          "total_return": 0.24242547400000092,
+          "cagr": 0.07392211768956525,
+          "sharpe_ratio": 0.5056934131559597,
+          "max_drawdown": -0.16850807681614188,
+          "trades": 426,
+          "trades_per_year": 139.96349413298566,
+          "avg_trade_bps": 6.151548343168004,
+          "win_rate": 0.4953051643192488,
+          "time_in_market": 0.3782421861886058
+        },
+        "intraday_momentum": {
+          "total_return": -0.17659477600000018,
+          "cagr": -0.06184495654013045,
+          "sharpe_ratio": -1.0494782131675153,
+          "max_drawdown": -0.17729091869352853,
+          "trades": 423,
+          "trades_per_year": 138.97783572359845,
+          "avg_trade_bps": -4.51451702547384,
+          "win_rate": 0.49645390070921985,
+          "time_in_market": 0.04118239500453218
+        },
+        "vwap_reversion": {
+          "total_return": -0.515042624000001,
+          "cagr": -0.21161740723058287,
+          "sharpe_ratio": -1.0639096543119138,
+          "max_drawdown": -0.5689814380882192,
+          "trades": 1185,
+          "trades_per_year": 389.3350717079531,
+          "avg_trade_bps": -5.615113430830633,
+          "win_rate": 0.7232067510548523,
+          "time_in_market": 0.351680263202068
+        },
+        "gap_fade": {
+          "total_return": 0.13366801099999726,
+          "cagr": 0.042081036063781774,
+          "sharpe_ratio": 0.33429266118076356,
+          "max_drawdown": -0.19708581192008767,
+          "trades": 210,
+          "trades_per_year": 68.99608865710562,
+          "avg_trade_bps": 7.931340399941954,
+          "win_rate": 0.5761904761904761,
+          "time_in_market": 0.07592573941652399
+        }
+      },
+      "yearly": {
+        "buy_and_hold": {
+          "2023": 0.20332937999999978,
+          "2024": 1.6977642480565018,
+          "2025": 0.387819362220297,
+          "2026": -0.3230768131886814
+        },
+        "hold_intraday": {
+          "2023": 0.06500281800000063,
+          "2024": 0.050435608330944515,
+          "2025": -0.03352618215559788,
+          "2026": -0.35487126204833586
+        },
+        "orb_30": {
+          "2023": 0.03821478799999989,
+          "2024": 0.23197776489386723,
+          "2025": 0.0474000491677633,
+          "2026": -0.07259874934593058
+        },
+        "intraday_momentum": {
+          "2023": -0.032944346000000735,
+          "2024": -0.05909489569046089,
+          "2025": -0.06718348866722068,
+          "2026": -0.029891968045864137
+        },
+        "vwap_reversion": {
+          "2023": 0.033488105999999185,
+          "2024": -0.347049475381191,
+          "2025": 0.050954450363328574,
+          "2026": -0.31619240912220037
+        },
+        "gap_fade": {
+          "2023": 0.010957435999999987,
+          "2024": 0.15498847569681407,
+          "2025": -0.12730344614193523,
+          "2026": 0.11253096947168117
+        }
+      },
+      "controls": {
+        "hold_intraday": {
+          "return_percentile": 0.0,
+          "sharpe_percentile": 0.32,
+          "random_median_return": 0.004178794955393639,
+          "breakeven_cost_bp": 0.03447541322431275
+        },
+        "orb_30": {
+          "return_percentile": 0.91,
+          "sharpe_percentile": 0.93,
+          "random_median_return": -0.14350860037833973,
+          "breakeven_cost_bp": 4.076335583661114
+        },
+        "intraday_momentum": {
+          "return_percentile": 0.08,
+          "sharpe_percentile": 0.19,
+          "random_median_return": -0.10456922643309552,
+          "breakeven_cost_bp": -1.2574971222300242
+        },
+        "vwap_reversion": {
+          "return_percentile": 0.05,
+          "sharpe_percentile": 0.08,
+          "random_median_return": -0.2532221713049326,
+          "breakeven_cost_bp": -1.8078778765180405
+        },
+        "gap_fade": {
+          "return_percentile": 0.65,
+          "sharpe_percentile": 0.48,
+          "random_median_return": 0.07665731283510335,
+          "breakeven_cost_bp": 4.966365107576876
+        }
+      },
+      "cost_stress": {
+        "hold_intraday": [
+          {
+            "cost_bp_per_side": 0.0,
+            "total_return": -0.18869154073222671,
+            "sharpe_ratio": 0.004584422186984358,
+            "avg_trade_bps": 0.0689508264486255
+          },
+          {
+            "cost_bp_per_side": 0.5,
+            "total_return": -0.24802484689567905,
+            "sharpe_ratio": -0.06190718716458921,
+            "avg_trade_bps": -0.9310293453158469
+          },
+          {
+            "cost_bp_per_side": 1.0,
+            "total_return": -0.3030215341268635,
+            "sharpe_ratio": -0.1284054460928413,
+            "avg_trade_bps": -1.9309595204876115
+          },
+          {
+            "cost_bp_per_side": 2.0,
+            "total_return": -0.40124900750582027,
+            "sharpe_ratio": -0.26142191567117873,
+            "avg_trade_bps": -3.93066989603716
+          },
+          {
+            "cost_bp_per_side": 5.0,
+            "total_return": -0.6204333352955274,
+            "sharpe_ratio": -0.6606309920709671,
+            "avg_trade_bps": -9.928601494282733
+          }
+        ],
+        "orb_30": [
+          {
+            "cost_bp_per_side": 0.0,
+            "total_return": 0.35167527384620123,
+            "sharpe_ratio": 0.669529563934081,
+            "avg_trade_bps": 8.152671167322229
+          },
+          {
+            "cost_bp_per_side": 0.5,
+            "total_return": 0.2958618116688507,
+            "sharpe_ratio": 0.587497962264224,
+            "avg_trade_bps": 7.152084736740893
+          },
+          {
+            "cost_bp_per_side": 1.0,
+            "total_return": 0.24235043624750952,
+            "sharpe_ratio": 0.505420370249159,
+            "avg_trade_bps": 6.151548343168004
+          },
+          {
+            "cost_bp_per_side": 2.0,
+            "total_return": 0.14185846345715092,
+            "sharpe_ratio": 0.3411482260332771,
+            "avg_trade_bps": 4.15062565205069
+          },
+          {
+            "cost_bp_per_side": 5.0,
+            "total_return": -0.11346639326906882,
+            "sharpe_ratio": -0.1522236665675621,
+            "avg_trade_bps": -1.8509419232397901
+          }
+        ],
+        "intraday_momentum": [
+          {
+            "cost_bp_per_side": 0.0,
+            "total_return": -0.10475606747393218,
+            "sharpe_ratio": -0.5851965452579524,
+            "avg_trade_bps": -2.5149942444600484
+          },
+          {
+            "cost_bp_per_side": 0.5,
+            "total_return": -0.1414753259998881,
+            "sharpe_ratio": -0.8174601357923805,
+            "avg_trade_bps": -3.514780626803877
+          },
+          {
+            "cost_bp_per_side": 1.0,
+            "total_return": -0.1766902003185693,
+            "sharpe_ratio": -1.0493192701530183,
+            "avg_trade_bps": -4.51451702547384
+          },
+          {
+            "cost_bp_per_side": 2.0,
+            "total_return": -0.24285054099928138,
+            "sharpe_ratio": -1.5113458531329433,
+            "avg_trade_bps": -6.5138398867720015
+          },
+          {
+            "cost_bp_per_side": 5.0,
+            "total_return": -0.41113573831423433,
+            "sharpe_ratio": -2.87559832445339,
+            "avg_trade_bps": -12.51060925221296
+          }
+        ],
+        "vwap_reversion": [
+          {
+            "cost_bp_per_side": 0.0,
+            "total_return": -0.3871176443658597,
+            "sharpe_ratio": -0.6805735326365914,
+            "avg_trade_bps": -3.615755753036081
+          },
+          {
+            "cost_bp_per_side": 0.5,
+            "total_return": -0.4549694969003809,
+            "sharpe_ratio": -0.8716561832923769,
+            "avg_trade_bps": -4.615459581018655
+          },
+          {
+            "cost_bp_per_side": 1.0,
+            "total_return": -0.5153122979499596,
+            "sharpe_ratio": -1.0636759766126833,
+            "avg_trade_bps": -5.615113430830633
+          },
+          {
+            "cost_bp_per_side": 2.0,
+            "total_return": -0.6167017043020617,
+            "sharpe_ratio": -1.4503580524302697,
+            "avg_trade_bps": -7.614271210921484
+          },
+          {
+            "cost_bp_per_side": 5.0,
+            "total_return": -0.8104597056770285,
+            "sharpe_ratio": -2.628271114597922,
+            "avg_trade_bps": -13.61054546477919
+          }
+        ],
+        "gap_fade": [
+          {
+            "cost_bp_per_side": 0.0,
+            "total_return": 0.18176173505409876,
+            "sharpe_ratio": 0.4182404362006633,
+            "avg_trade_bps": 9.932730215153752
+          },
+          {
+            "cost_bp_per_side": 0.5,
+            "total_return": 0.15744950647594824,
+            "sharpe_ratio": 0.3761973498305929,
+            "avg_trade_bps": 8.932010284594007
+          },
+          {
+            "cost_bp_per_side": 1.0,
+            "total_return": 0.1336362957738937,
+            "sharpe_ratio": 0.33412898933054686,
+            "avg_trade_bps": 7.931340399941954
+          },
+          {
+            "cost_bp_per_side": 2.0,
+            "total_return": 0.08746626108798128,
+            "sharpe_ratio": 0.24992580453174656,
+            "avg_trade_bps": 5.930150753363158
+          },
+          {
+            "cost_bp_per_side": 5.0,
+            "total_return": -0.04008822734435269,
+            "sharpe_ratio": -0.0030459732238260684,
+            "avg_trade_bps": -0.07221747479067081
+          }
+        ]
+      }
+    }
+  }
+}
