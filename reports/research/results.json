@@ -1,0 +1,501 @@
+[
+  {
+    "symbol": "BTCUSDT",
+    "data": {
+      "rows": "2922",
+      "first": "2018-01-01",
+      "last": "2025-12-31",
+      "first_close": "13380.0",
+      "last_close": "87648.22"
+    },
+    "sensitivity": {
+      "pairs": 34,
+      "sharpe_min": 0.7647042758048409,
+      "sharpe_median": 0.9123033848407686,
+      "sharpe_max": 1.246452801289129,
+      "share_positive_return": 1.0,
+      "sma_10_50_sharpe": 1.0347006520916946,
+      "best_pair": [
+        5,
+        100
+      ]
+    },
+    "walk_forward": {
+      "oos_start": "2020-07-19",
+      "oos_end": "2025-12-19",
+      "folds": 11,
+      "chosen_pairs": [
+        "30/50",
+        "15/30",
+        "30/50",
+        "5/30",
+        "10/100",
+        "5/150",
+        "15/150",
+        "5/200",
+        "5/200",
+        "5/50",
+        "5/50"
+      ],
+      "walk_forward": {
+        "total_return": 3.411758574570748,
+        "num_trades": 32,
+        "max_drawdown": -0.5258095743292165,
+        "sharpe_ratio": 0.8690482267092636,
+        "final_equity": 441175.8574570748,
+        "fold_win_rate": 0.5454545454545454,
+        "folds_beating_baseline": 0.36363636363636365
+      },
+      "baseline": {
+        "total_return": 7.398960152248307,
+        "max_drawdown": -0.5412423726930515,
+        "sharpe_ratio": 1.1378334863309172,
+        "final_equity": 839896.0152248307
+      },
+      "buy_and_hold": {
+        "total_return": 8.542080641003706,
+        "max_drawdown": -0.7662925431645935,
+        "sharpe_ratio": 1.0023020042381103,
+        "final_equity": 954208.0641003705
+      }
+    },
+    "random_baseline": {
+      "samples": 200,
+      "strategy_return": 10.105741568181001,
+      "strategy_sharpe": 0.9075322955227649,
+      "random_return_median": 2.1614237988232503,
+      "random_sharpe_median": 0.5495286246042521,
+      "return_percentile": 0.925,
+      "sharpe_percentile": 0.925
+    },
+    "robustness": [
+      {
+        "cost_per_side": 0.001,
+        "delay_bars": 0,
+        "total_return": 10.4924773210287,
+        "sharpe_ratio": 0.9175981343970316,
+        "max_drawdown": -0.5378690387892908,
+        "num_trades": 35
+      },
+      {
+        "cost_per_side": 0.001,
+        "delay_bars": 1,
+        "total_return": 6.8260142014916,
+        "sharpe_ratio": 0.8071358782017021,
+        "max_drawdown": -0.5894718283907,
+        "num_trades": 35
+      },
+      {
+        "cost_per_side": 0.001,
+        "delay_bars": 2,
+        "total_return": 4.9925271651351,
+        "sharpe_ratio": 0.7295729669386315,
+        "max_drawdown": -0.5840222069504,
+        "num_trades": 35
+      },
+      {
+        "cost_per_side": 0.0015,
+        "delay_bars": 0,
+        "total_return": 10.105741568181001,
+        "sharpe_ratio": 0.9075322955227649,
+        "max_drawdown": -0.5416676462562257,
+        "num_trades": 35
+      },
+      {
+        "cost_per_side": 0.0015,
+        "delay_bars": 1,
+        "total_return": 6.5613405615297,
+        "sharpe_ratio": 0.7970773304737371,
+        "max_drawdown": -0.5927103075501001,
+        "num_trades": 35
+      },
+      {
+        "cost_per_side": 0.0015,
+        "delay_bars": 2,
+        "total_return": 4.788968646092,
+        "sharpe_ratio": 0.7195688085947267,
+        "max_drawdown": -0.5873041990543999,
+        "num_trades": 35
+      },
+      {
+        "cost_per_side": 0.002,
+        "delay_bars": 0,
+        "total_return": 9.731656288533099,
+        "sharpe_ratio": 0.8974616709903438,
+        "max_drawdown": -0.5454386611762567,
+        "num_trades": 35
+      },
+      {
+        "cost_per_side": 0.002,
+        "delay_bars": 1,
+        "total_return": 6.3053677872795,
+        "sharpe_ratio": 0.7870151509547206,
+        "max_drawdown": -0.5959265236392,
+        "num_trades": 35
+      },
+      {
+        "cost_per_side": 0.002,
+        "delay_bars": 2,
+        "total_return": 4.592132079435,
+        "sharpe_ratio": 0.7095599367944584,
+        "max_drawdown": -0.5905636478675,
+        "num_trades": 35
+      },
+      {
+        "cost_per_side": 0.003,
+        "delay_bars": 0,
+        "total_return": 9.019840261800498,
+        "sharpe_ratio": 0.8773074042999277,
+        "max_drawdown": -0.5528985825455026,
+        "num_trades": 35
+      },
+      {
+        "cost_per_side": 0.003,
+        "delay_bars": 1,
+        "total_return": 5.818420886971199,
+        "sharpe_ratio": 0.766881212650511,
+        "max_drawdown": -0.6022926845573,
+        "num_trades": 35
+      },
+      {
+        "cost_per_side": 0.003,
+        "delay_bars": 2,
+        "total_return": 4.2177650336207995,
+        "sharpe_ratio": 0.6895292026556846,
+        "max_drawdown": -0.5970153708620001,
+        "num_trades": 35
+      }
+    ]
+  },
+  {
+    "symbol": "ETHUSDT",
+    "data": {
+      "rows": "2922",
+      "first": "2018-01-01",
+      "last": "2025-12-31",
+      "first_close": "754.99",
+      "last_close": "2971.64"
+    },
+    "sensitivity": {
+      "pairs": 34,
+      "sharpe_min": 0.6673279336981369,
+      "sharpe_median": 0.920595693497987,
+      "sharpe_max": 1.057989662992305,
+      "share_positive_return": 1.0,
+      "sma_10_50_sharpe": 0.998512148466058,
+      "best_pair": [
+        15,
+        50
+      ]
+    },
+    "walk_forward": {
+      "oos_start": "2020-07-19",
+      "oos_end": "2025-12-19",
+      "folds": 11,
+      "chosen_pairs": [
+        "5/50",
+        "10/30",
+        "15/30",
+        "15/30",
+        "15/50",
+        "20/30",
+        "20/30",
+        "15/200",
+        "5/200",
+        "30/50",
+        "30/50"
+      ],
+      "walk_forward": {
+        "total_return": 5.458050286346336,
+        "num_trades": 32,
+        "max_drawdown": -0.6132703897879765,
+        "sharpe_ratio": 0.8817970698187523,
+        "final_equity": 645805.0286346336,
+        "fold_win_rate": 0.6363636363636364,
+        "folds_beating_baseline": 0.2727272727272727
+      },
+      "baseline": {
+        "total_return": 18.251578648057095,
+        "max_drawdown": -0.4956737654005302,
+        "sharpe_ratio": 1.206670282117822,
+        "final_equity": 1925157.8648057093
+      },
+      "buy_and_hold": {
+        "total_return": 11.42346571732047,
+        "max_drawdown": -0.7930253453633334,
+        "sharpe_ratio": 0.9815865450707487,
+        "final_equity": 1242346.571732047
+      }
+    },
+    "random_baseline": {
+      "samples": 200,
+      "strategy_return": 17.6107200500875,
+      "strategy_sharpe": 0.9151537862888576,
+      "random_return_median": 1.2103869441495498,
+      "random_sharpe_median": 0.46943913719739905,
+      "return_percentile": 0.925,
+      "sharpe_percentile": 0.925
+    },
+    "robustness": [
+      {
+        "cost_per_side": 0.001,
+        "delay_bars": 0,
+        "total_return": 18.232868403641103,
+        "sharpe_ratio": 0.9222984129709927,
+        "max_drawdown": -0.5991885959402194,
+        "num_trades": 34
+      },
+      {
+        "cost_per_side": 0.001,
+        "delay_bars": 1,
+        "total_return": 13.5068433170597,
+        "sharpe_ratio": 0.8619009739535946,
+        "max_drawdown": -0.7124602976136112,
+        "num_trades": 31
+      },
+      {
+        "cost_per_side": 0.001,
+        "delay_bars": 2,
+        "total_return": 19.2982581853255,
+        "sharpe_ratio": 0.9269394651779479,
+        "max_drawdown": -0.7088047085660565,
+        "num_trades": 30
+      },
+      {
+        "cost_per_side": 0.0015,
+        "delay_bars": 0,
+        "total_return": 17.6107200500875,
+        "sharpe_ratio": 0.9151537862888576,
+        "max_drawdown": -0.6009187345029566,
+        "num_trades": 34
+      },
+      {
+        "cost_per_side": 0.0015,
+        "delay_bars": 1,
+        "total_return": 13.0779148768733,
+        "sharpe_ratio": 0.8556977994270105,
+        "max_drawdown": -0.7137567902563443,
+        "num_trades": 31
+      },
+      {
+        "cost_per_side": 0.0015,
+        "delay_bars": 2,
+        "total_return": 18.7194048592276,
+        "sharpe_ratio": 0.9209741192139885,
+        "max_drawdown": -0.7098413824706535,
+        "num_trades": 30
+      },
+      {
+        "cost_per_side": 0.002,
+        "delay_bars": 0,
+        "total_return": 17.0081164227794,
+        "sharpe_ratio": 0.9080076418961565,
+        "max_drawdown": -0.6026431173472379,
+        "num_trades": 34
+      },
+      {
+        "cost_per_side": 0.002,
+        "delay_bars": 1,
+        "total_return": 12.6612669392719,
+        "sharpe_ratio": 0.8494917455277241,
+        "max_drawdown": -0.7150487766412071,
+        "num_trades": 31
+      },
+      {
+        "cost_per_side": 0.002,
+        "delay_bars": 2,
+        "total_return": 18.1565161530286,
+        "sharpe_ratio": 0.9150058930475243,
+        "max_drawdown": -0.7108754152973371,
+        "num_trades": 30
+      },
+      {
+        "cost_per_side": 0.003,
+        "delay_bars": 0,
+        "total_return": 15.8591801046808,
+        "sharpe_ratio": 0.8937113374248905,
+        "max_drawdown": -0.6060746938573041,
+        "num_trades": 34
+      },
+      {
+        "cost_per_side": 0.003,
+        "delay_bars": 1,
+        "total_return": 11.863458958437999,
+        "sharpe_ratio": 0.8370713519174011,
+        "max_drawdown": -0.7176192701296604,
+        "num_trades": 31
+      },
+      {
+        "cost_per_side": 0.003,
+        "delay_bars": 2,
+        "total_return": 17.076942881705,
+        "sharpe_ratio": 0.9030611644289128,
+        "max_drawdown": -0.7129355810997704,
+        "num_trades": 30
+      }
+    ]
+  },
+  {
+    "symbol": "SOLUSDT",
+    "data": {
+      "rows": "1969",
+      "first": "2020-08-11",
+      "last": "2025-12-31",
+      "first_close": "3.2985",
+      "last_close": "124.65"
+    },
+    "sensitivity": {
+      "pairs": 34,
+      "sharpe_min": 0.5863998495156203,
+      "sharpe_median": 1.0658121599407497,
+      "sharpe_max": 1.4071645456687343,
+      "share_positive_return": 1.0,
+      "sma_10_50_sharpe": 1.3365273027628164,
+      "best_pair": [
+        15,
+        30
+      ]
+    },
+    "walk_forward": {
+      "oos_start": "2023-02-27",
+      "oos_end": "2025-12-31",
+      "folds": 6,
+      "chosen_pairs": [
+        "5/200",
+        "5/50",
+        "30/150",
+        "10/100",
+        "15/30",
+        "15/30"
+      ],
+      "walk_forward": {
+        "total_return": 1.6569919390556302,
+        "num_trades": 15,
+        "max_drawdown": -0.5696461122667076,
+        "sharpe_ratio": 0.8456561585835949,
+        "final_equity": 265699.19390556304,
+        "fold_win_rate": 0.6666666666666666,
+        "folds_beating_baseline": 0.3333333333333333
+      },
+      "baseline": {
+        "total_return": 4.629653867290239,
+        "max_drawdown": -0.5227298796843929,
+        "sharpe_ratio": 1.2640845490545674,
+        "final_equity": 562965.3867290239
+      },
+      "buy_and_hold": {
+        "total_return": 4.479568345893858,
+        "max_drawdown": -0.5976638546398443,
+        "sharpe_ratio": 1.1212017444586277,
+        "final_equity": 547956.8345893858
+      }
+    },
+    "random_baseline": {
+      "samples": 200,
+      "strategy_return": 207.7859696209632,
+      "strategy_sharpe": 1.5716381423331787,
+      "random_return_median": 6.5614072930311504,
+      "random_sharpe_median": 0.8654419320990013,
+      "return_percentile": 0.995,
+      "sharpe_percentile": 0.99
+    },
+    "robustness": [
+      {
+        "cost_per_side": 0.001,
+        "delay_bars": 0,
+        "total_return": 211.6306562629218,
+        "sharpe_ratio": 1.5757276964319258,
+        "max_drawdown": -0.7452795394381668,
+        "num_trades": 19
+      },
+      {
+        "cost_per_side": 0.001,
+        "delay_bars": 1,
+        "total_return": 126.52325746798961,
+        "sharpe_ratio": 1.4660786997354796,
+        "max_drawdown": -0.7791778148506472,
+        "num_trades": 18
+      },
+      {
+        "cost_per_side": 0.001,
+        "delay_bars": 2,
+        "total_return": 39.4405345688895,
+        "sharpe_ratio": 1.2275977795431356,
+        "max_drawdown": -0.7839111663015641,
+        "num_trades": 18
+      },
+      {
+        "cost_per_side": 0.0015,
+        "delay_bars": 0,
+        "total_return": 207.7859696209632,
+        "sharpe_ratio": 1.5716381423331787,
+        "max_drawdown": -0.7465057676006921,
+        "num_trades": 19
+      },
+      {
+        "cost_per_side": 0.0015,
+        "delay_bars": 1,
+        "total_return": 124.3352801110929,
+        "sharpe_ratio": 1.4622205296575481,
+        "max_drawdown": -0.7802531409461231,
+        "num_trades": 18
+      },
+      {
+        "cost_per_side": 0.0015,
+        "delay_bars": 2,
+        "total_return": 38.7295520749876,
+        "sharpe_ratio": 1.223624902828389,
+        "max_drawdown": -0.7849760443923096,
+        "num_trades": 18
+      },
+      {
+        "cost_per_side": 0.002,
+        "delay_bars": 0,
+        "total_return": 204.00700409893878,
+        "sharpe_ratio": 1.5675456005998492,
+        "max_drawdown": -0.7477275687927821,
+        "num_trades": 19
+      },
+      {
+        "cost_per_side": 0.002,
+        "delay_bars": 1,
+        "total_return": 122.18268374814508,
+        "sharpe_ratio": 1.4583595025076903,
+        "max_drawdown": -0.7813243532664426,
+        "num_trades": 18
+      },
+      {
+        "cost_per_side": 0.002,
+        "delay_bars": 2,
+        "total_return": 38.030350187701494,
+        "sharpe_ratio": 1.2196504394188772,
+        "max_drawdown": -0.7860368019000487,
+        "num_trades": 18
+      },
+      {
+        "cost_per_side": 0.003,
+        "delay_bars": 0,
+        "total_return": 196.6420381629679,
+        "sharpe_ratio": 1.559351687936198,
+        "max_drawdown": -0.7501579261741855,
+        "num_trades": 19
+      },
+      {
+        "cost_per_side": 0.003,
+        "delay_bars": 1,
+        "total_return": 117.98151891464191,
+        "sharpe_ratio": 1.4506290129618182,
+        "max_drawdown": -0.7834544712321088,
+        "num_trades": 18
+      },
+      {
+        "cost_per_side": 0.003,
+        "delay_bars": 2,
+        "total_return": 36.6665465993697,
+        "sharpe_ratio": 1.211696806417375,
+        "max_drawdown": -0.7881460166291899,
+        "num_trades": 18
+      }
+    ]
+  }
+]
