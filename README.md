@@ -171,6 +171,10 @@ python scripts/forward_test.py      # run once per trading day, after ~16:20 New
 - **Restart-safe:** every run recomputes from the start date, so missed days or
   reboots don't matter.
 - **Starting over:** `--reset` begins a new forward test.
+- **Automatic runs (Windows):** a Task Scheduler task named **ETF Forward Test** runs
+  `scripts/forward_test_task.cmd` every weekday at 3:00 PM Mountain (5:00 PM New
+  York), and catches up after sleep. Output is appended to `paper/forward_test.log`.
+  Manage it in Task Scheduler or with `Get-ScheduledTask "ETF Forward Test"`.
 
 Because the strategy trades only a few times a year per ETF, the forward test needs
 months to say much. Its job is to confirm that live data, signals and timing behave
