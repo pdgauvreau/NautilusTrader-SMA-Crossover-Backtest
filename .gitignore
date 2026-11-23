@@ -1,0 +1,22 @@
+# Virtual environment
+.venv/
+venv/
+
+# Raw market data (re-download with scripts/download_data.py)
+data/raw/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+
+# Nautilus runtime output
+.nautilus/
+logs/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
