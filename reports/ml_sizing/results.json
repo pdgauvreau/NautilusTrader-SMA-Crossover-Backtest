@@ -1,0 +1,250 @@
+{
+  "settings": {
+    "horizon_days": 20,
+    "vol_target": 0.6,
+    "cost_per_side": 0.0015
+  },
+  "auc": {
+    "lgbm": 0.5151407500227956,
+    "logreg": 0.4922179199095762,
+    "shuffled": 0.48259368965389615
+  },
+  "symbols": {
+    "BTCUSDT": {
+      "oos_start": "2020-07-26",
+      "oos_end": "2026-01-01",
+      "stats": [
+        {
+          "scheme": "fixed",
+          "total_return": 6.978292446563801,
+          "num_trades": 23,
+          "win_rate": 0.4782608695652174,
+          "max_drawdown": -0.5416676466852457,
+          "sharpe_ratio": 1.1121399473164122,
+          "final_equity": 797829.24465638,
+          "avg_exposure": 0.5321331644796214
+        },
+        {
+          "scheme": "vol_target",
+          "total_return": 7.5401694289896,
+          "num_trades": 23,
+          "win_rate": 0.4782608695652174,
+          "max_drawdown": -0.5082195198533402,
+          "sharpe_ratio": 1.1580859432700379,
+          "final_equity": 854016.94289896,
+          "avg_exposure": 0.5198749819374413
+        },
+        {
+          "scheme": "ml_size",
+          "total_return": 3.6006165400174,
+          "num_trades": 23,
+          "win_rate": 0.4782608695652174,
+          "max_drawdown": -0.43205558605748884,
+          "sharpe_ratio": 1.0393098430240926,
+          "final_equity": 460061.65400174,
+          "avg_exposure": 0.3316393615908088
+        },
+        {
+          "scheme": "ml_gate",
+          "total_return": 4.421692575746199,
+          "num_trades": 12,
+          "win_rate": 0.5,
+          "max_drawdown": -0.4864249068413353,
+          "sharpe_ratio": 1.0631584741882332,
+          "final_equity": 542169.25757462,
+          "avg_exposure": 0.304713903242507
+        },
+        {
+          "scheme": "ml_size_logreg",
+          "total_return": 2.3991693805444,
+          "num_trades": 23,
+          "win_rate": 0.4782608695652174,
+          "max_drawdown": -0.5172242270423058,
+          "sharpe_ratio": 0.8246149169889072,
+          "final_equity": 339916.93805444,
+          "avg_exposure": 0.34770376010952925
+        },
+        {
+          "scheme": "ml_size_shuffled",
+          "total_return": 1.3191624946199,
+          "num_trades": 23,
+          "win_rate": 0.4782608695652174,
+          "max_drawdown": -0.49887371976049233,
+          "sharpe_ratio": 0.6844247761020094,
+          "final_equity": 231916.24946199,
+          "avg_exposure": 0.30867203976796503
+        },
+        {
+          "scheme": "bnh",
+          "total_return": 8.00844181656574,
+          "num_trades": 1,
+          "win_rate": 1.0,
+          "max_drawdown": -0.7662925431645935,
+          "sharpe_ratio": 0.9827419499947451,
+          "final_equity": 900844.181656574,
+          "avg_exposure": 1.0
+        }
+      ]
+    },
+    "ETHUSDT": {
+      "oos_start": "2020-07-20",
+      "oos_end": "2026-01-01",
+      "stats": [
+        {
+          "scheme": "fixed",
+          "total_return": 17.270527846350998,
+          "num_trades": 25,
+          "win_rate": 0.48,
+          "max_drawdown": -0.4956737507714022,
+          "sharpe_ratio": 1.1862477957498503,
+          "final_equity": 1827052.7846350998,
+          "avg_exposure": 0.5155443452787069
+        },
+        {
+          "scheme": "vol_target",
+          "total_return": 15.009463411197,
+          "num_trades": 25,
+          "win_rate": 0.48,
+          "max_drawdown": -0.43965826414921305,
+          "sharpe_ratio": 1.2073655754644683,
+          "final_equity": 1600946.3411196999,
+          "avg_exposure": 0.46674747775548014
+        },
+        {
+          "scheme": "ml_size",
+          "total_return": 3.0555536821515004,
+          "num_trades": 25,
+          "win_rate": 0.48,
+          "max_drawdown": -0.43019510753525936,
+          "sharpe_ratio": 0.8596245961506475,
+          "final_equity": 405555.36821515,
+          "avg_exposure": 0.2782375476311503
+        },
+        {
+          "scheme": "ml_gate",
+          "total_return": 0.8004313517153001,
+          "num_trades": 10,
+          "win_rate": 0.4,
+          "max_drawdown": -0.49567376636859994,
+          "sharpe_ratio": 0.4719607291398324,
+          "final_equity": 180043.13517153,
+          "avg_exposure": 0.16496757510059445
+        },
+        {
+          "scheme": "ml_size_logreg",
+          "total_return": 3.6800447270113006,
+          "num_trades": 25,
+          "win_rate": 0.48,
+          "max_drawdown": -0.4881025870214678,
+          "sharpe_ratio": 0.8840328949096546,
+          "final_equity": 468004.47270113,
+          "avg_exposure": 0.3032193055419062
+        },
+        {
+          "scheme": "ml_size_shuffled",
+          "total_return": 3.7793412765084007,
+          "num_trades": 25,
+          "win_rate": 0.48,
+          "max_drawdown": -0.47039943461187994,
+          "sharpe_ratio": 0.9051985063995551,
+          "final_equity": 477934.12765084003,
+          "avg_exposure": 0.30302879421612855
+        },
+        {
+          "scheme": "bnh",
+          "total_return": 11.390692285355998,
+          "num_trades": 1,
+          "win_rate": 1.0,
+          "max_drawdown": -0.7930253453633334,
+          "sharpe_ratio": 0.9779794086285426,
+          "final_equity": 1239069.2285355998,
+          "avg_exposure": 1.0
+        }
+      ]
+    },
+    "SOLUSDT": {
+      "oos_start": "2021-02-28",
+      "oos_end": "2026-01-01",
+      "stats": [
+        {
+          "scheme": "fixed",
+          "total_return": 38.3053074567264,
+          "num_trades": 18,
+          "win_rate": 0.5,
+          "max_drawdown": -0.7465057686982761,
+          "sharpe_ratio": 1.3365273027628164,
+          "final_equity": 3930530.7456726404,
+          "avg_exposure": 0.49836749082271825
+        },
+        {
+          "scheme": "vol_target",
+          "total_return": 11.6627733924447,
+          "num_trades": 18,
+          "win_rate": 0.5,
+          "max_drawdown": -0.6822541079495064,
+          "sharpe_ratio": 1.1686053796469473,
+          "final_equity": 1266277.33924447,
+          "avg_exposure": 0.37873833516926486
+        },
+        {
+          "scheme": "ml_size",
+          "total_return": 36.812888927996006,
+          "num_trades": 18,
+          "win_rate": 0.5,
+          "max_drawdown": -0.5184670858588803,
+          "sharpe_ratio": 1.5202388844642674,
+          "final_equity": 3781288.8927996005,
+          "avg_exposure": 0.3513489744251583
+        },
+        {
+          "scheme": "ml_gate",
+          "total_return": 28.6483389808527,
+          "num_trades": 11,
+          "win_rate": 0.5454545454545454,
+          "max_drawdown": -0.4323159779868835,
+          "sharpe_ratio": 1.4267080398289735,
+          "final_equity": 2964833.89808527,
+          "avg_exposure": 0.34675666392163884
+        },
+        {
+          "scheme": "ml_size_logreg",
+          "total_return": 10.677302979607898,
+          "num_trades": 18,
+          "win_rate": 0.5,
+          "max_drawdown": -0.735405548476299,
+          "sharpe_ratio": 1.1502414246083055,
+          "final_equity": 1167730.2979607899,
+          "avg_exposure": 0.31532272895220653
+        },
+        {
+          "scheme": "ml_size_shuffled",
+          "total_return": 14.1146018338339,
+          "num_trades": 18,
+          "win_rate": 0.5,
+          "max_drawdown": -0.7003636345749851,
+          "sharpe_ratio": 1.2003511117717607,
+          "final_equity": 1511460.18338339,
+          "avg_exposure": 0.3589714933795852
+        },
+        {
+          "scheme": "bnh",
+          "total_return": 8.420889815099965,
+          "num_trades": 1,
+          "win_rate": 1.0,
+          "max_drawdown": -0.9626992725584275,
+          "sharpe_ratio": 0.9716803112887749,
+          "final_equity": 942088.9815099966,
+          "avg_exposure": 1.0
+        }
+      ]
+    }
+  },
+  "bet_correlation": {
+    "vol_target": -0.015565479656437653,
+    "ml_size": 0.022927691672139622,
+    "ml_gate": 0.014316262266248358,
+    "ml_size_logreg": -0.20926714684809922,
+    "ml_size_shuffled": -0.35264516802455104
+  },
+  "n_entries": 66
+}
