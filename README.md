@@ -65,6 +65,10 @@ streamlit run app/streamlit_app.py      # opens http://localhost:8501
 
 The app has the following:
 
+- A symbol picker (BTC, ETH, SOL), sizing by % of cash or fixed quantity, and
+  sliders for slippage and execution delay.
+- A **Stage 1 research** tab that presents the walk-forward, sensitivity,
+  random-baseline and robustness results described below.
 - Metric cards for return, drawdown and Sharpe, each with the gap versus buy & hold.
 - Linked equity, price/SMA and drawdown charts with buy and sell markers.
 - The trades table with a CSV download.
@@ -75,6 +79,71 @@ The app and `scripts/run_backtest.py` share `src/pipeline.py`, so both always
 report the same numbers. The app reads only local archive data and never
 connects to an exchange.
 
+## Stage 1 research: is the edge real?
+
+One good year proves nothing, so `scripts/run_research.py` tests the rule on
+**BTC, ETH and SOL from 2018 to 2025** (SOL from its 2020 listing). It asks four
+questions, all through the same Nautilus engine. Every run invests 99% of cash
+per entry and pays 0.10% fee + 0.05% slippage per side.
+
+**1. Does re-optimising parameters help?** Walk-forward: on each 2-year window,
+pick the best of 34 SMA pairs by Sharpe, then trade it untouched for the next
+6 months, and roll forward. Only those out-of-sample months are stitched together.
+
+| Symbol | Out-of-sample | Walk-forward optimised | Fixed 10/50 | Buy & hold |
+|---|---|---:|---:|---:|
+| BTCUSDT | Jul 2020 to Dec 2025 | +341% (Sharpe 0.87, DD −53%) | +740% (1.14, −54%) | +854% (1.00, −77%) |
+| ETHUSDT | Jul 2020 to Dec 2025 | +546% (0.88, −61%) | +1825% (1.21, −50%) | +1142% (0.98, −79%) |
+| SOLUSDT | Feb 2023 to Dec 2025 | +166% (0.85, −57%) | +463% (1.26, −52%) | +448% (1.12, −60%) |
+
+![BTC walk-forward](reports/research/BTCUSDT_walk_forward.png)
+
+**2. Is it one lucky parameter pair?** No. All 34 fast/slow pairs were profitable
+on every asset, with Sharpe ratios between about 0.6 and 1.4.
+
+**3. Is the timing better than luck?** The 10/50 rule beat 92% (BTC, ETH) and
+100% (SOL) of 200 random entry schedules that had the same number of trades and
+the same holding lengths.
+
+**4. Does it survive costs and late fills?** Raising costs to 0.30% per side
+barely moves Sharpe, because the rule only trades a few times a year. Acting 1–2
+days late hurts more: BTC's Sharpe drops from 0.92 to 0.73.
+
+### What this says
+
+- **Optimising made things worse.** Parameters that were best in the last 2 years
+  underperformed the plain 10/50 rule in the next 6 months, on all three assets.
+  This is the classic overfitting result, and the reason to always test out of
+  sample before trusting a tuned model.
+- **The broad trend-following effect looks real but modest.** It works across
+  parameters and assets and beats most random timings. Its advantage over buy & hold
+  is mostly a **shallower drawdown**, not reliably higher returns.
+- **The evidence is weaker than it looks.** Beating 92% of random schedules is
+  roughly a p ≈ 0.08 result, which is not conventionally significant. And
+  2018–2025 was an unusually strong period for crypto.
+
+The full tables and per-symbol charts are in
+[`reports/research/summary.md`](reports/research/summary.md). The dashboard's
+**Stage 1 research** tab shows them interactively.
+
+```powershell
+python scripts/download_data.py --symbols BTCUSDT ETHUSDT SOLUSDT --start-year 2018 --end-year 2025
+```
+
+```powershell
+python scripts/run_research.py      # ~90 s, writes reports/research/
+```
+
+Method notes:
+
+- **Warmup and fresh capital:** every window gets extra warmup bars so the slow SMA
+  is ready on its first day, and starts with fresh capital.
+- **Fold boundaries:** if the fast SMA is already above the slow one when a window
+  starts, the strategy enters immediately, so a trend crossing a fold boundary isn't
+  skipped. Positions are closed at each fold's end, which adds a round trip of cost.
+- **Random baseline:** it reuses the strategy's own holding lengths, so it tests
+  *timing* at equal exposure.
+
 ## How it works
 
 ```
@@ -84,6 +153,8 @@ src/strategies/sma_crossover.py  SmaCrossover(Strategy) + SmaCrossoverConfig
 src/backtest.py            →  BacktestEngine, simulated Binance spot venue, equity curve
 src/metrics.py             →  return, drawdown, Sharpe, win rate, buy-and-hold baseline
 src/pipeline.py            →  one call: bars → backtest → aligned curves, stats, trades
+src/research.py            →  sensitivity grid, walk-forward, random baseline, cost/delay grid
+scripts/run_research.py    →  Stage 1 research across symbols, writes reports/research/
 scripts/run_backtest.py    →  CLI: runs the pipeline, writes reports/
 app/streamlit_app.py       →  interactive dashboard on the same pipeline
 ```
@@ -125,7 +196,7 @@ python scripts/run_backtest.py      # prints the table, writes reports/
 ```
 
 ```powershell
-python -m pytest -q                 # 41 tests, ~3 s
+python -m pytest -q                 # 59 tests, ~6 s
 ```
 
 Useful flags for the runner: `--fast 20 --slow 100`, `--trade-size 0.25`, `--capital 50000`,
@@ -149,6 +220,9 @@ python -m src.data_loader
 - `tests/test_backtest_smoke.py`: a synthetic run reconciles final equity with
   realised PnL and checks fees are charged. An end-to-end run of the script
   produces every report file (skipped if `data/raw/` is empty).
+- `tests/test_research.py`: execution delay, cash-based sizing, trade-start
+  warmup, joining a trend at a fold start, multi-asset instruments, the
+  random-schedule generator and walk-forward fold integrity.
 - `tests/test_app.py`: the shared pipeline aligns and reconciles its curves, and the
   Streamlit app renders the default backtest headlessly via `AppTest`.
 
@@ -160,7 +234,7 @@ app/            Streamlit dashboard
 scripts/        download_data.py, run_backtest.py
 tests/          pytest suite
 data/raw/       downloaded CSVs (git-ignored)
-reports/        generated summary, metrics, trades and chart
+reports/        generated summary, metrics, trades and chart; research/ for Stage 1
 docs/           README images
 ```
 

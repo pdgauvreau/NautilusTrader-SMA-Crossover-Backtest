@@ -1,14 +1,16 @@
-"""Interactive dashboard for the BTCUSDT SMA crossover backtest.
+"""Interactive dashboard for the SMA crossover backtests and Stage 1 research.
 
 Run from the repo root:
     streamlit run app/streamlit_app.py
 
-Every run is a fresh NautilusTrader backtest on the locally downloaded Binance
-archive data (data/raw/). Nothing here connects to an exchange.
+The "Backtest" tab runs a fresh NautilusTrader backtest on the locally downloaded
+Binance archive data (data/raw/). The "Research" tab shows the output of
+scripts/run_research.py. Nothing here connects to an exchange.
 """
 
 from __future__ import annotations
 
+import json
 import math
 import sys
 from datetime import date
@@ -23,6 +25,7 @@ import plotly.graph_objects as go  # noqa: E402
 import streamlit as st  # noqa: E402
 from plotly.subplots import make_subplots  # noqa: E402
 
+from src.data_loader import SPOT_SPECS  # noqa: E402
 from src.data_loader import TAKER_FEE  # noqa: E402
 from src.data_loader import load_klines_csv  # noqa: E402
 from src.data_loader import validate_daily  # noqa: E402
@@ -30,6 +33,7 @@ from src.pipeline import run_pipeline  # noqa: E402
 from src.strategies.sma_crossover import Signal  # noqa: E402
 
 RAW_DIR = ROOT / "data" / "raw"
+RESEARCH_DIR = ROOT / "reports" / "research"
 STRATEGY_COLOR = "#1f6feb"
 BNH_COLOR = "#8b949e"
 FAST_COLOR = "#d29922"
@@ -37,30 +41,42 @@ SLOW_COLOR = "#8250df"
 BUY_COLOR = "#1a7f37"
 SELL_COLOR = "#cf222e"
 
-st.set_page_config(page_title="BTC SMA Crossover Backtest", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Crypto SMA Crossover Backtest", page_icon="📈", layout="wide")
 
 
 # --------------------------------------------------------------------------- data
+def available_symbols() -> list[str]:
+    return [s for s in SPOT_SPECS if any(RAW_DIR.glob(f"{s}-1d-*.csv"))]
+
+
 @st.cache_data(show_spinner=False)
-def load_data() -> pd.DataFrame:
-    df = load_klines_csv(RAW_DIR)
+def load_data(symbol: str) -> pd.DataFrame:
+    df = load_klines_csv(RAW_DIR, symbol=symbol)
     validate_daily(df)
     return df[["open", "high", "low", "close", "volume", "close_time"]]
 
 
 @st.cache_data(show_spinner=False)
 def backtest(
+    symbol: str,
     start: date,
     end: date,
     fast: int,
     slow: int,
     trade_size: float,
+    position_fraction: float | None,
     capital: float,
+    cost_rate: float,
+    delay: int,
 ) -> dict:
     """Run one backtest and return plain, cacheable objects."""
-    df = load_data()
+    df = load_data(symbol)
     window = df.loc[pd.Timestamp(start, tz="UTC") : pd.Timestamp(end, tz="UTC")]
-    result = run_pipeline(window, fast, slow, trade_size, capital)
+    result = run_pipeline(
+        window, fast, slow, trade_size, capital,
+        symbol=symbol, position_fraction=position_fraction,
+        cost_rate=cost_rate, execution_delay_bars=delay,
+    )
     return {
         "closes": result.closes,
         "equity": result.equity,
@@ -87,12 +103,12 @@ def num(x: float) -> str:
 
 
 # ---------------------------------------------------------------------------- chart
-def build_chart(res: dict, fast: int, slow: int) -> go.Figure:
+def build_chart(res: dict, symbol: str, fast: int, slow: int, log_scale: bool) -> go.Figure:
     closes, equity, bnh = res["closes"], res["equity"], res["bnh"]
     fig = make_subplots(
         rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.04,
         row_heights=[0.45, 0.35, 0.20],
-        subplot_titles=("Equity (USDT)", "BTCUSDT close & SMAs", "Drawdown (%)"),
+        subplot_titles=("Equity (USDT)", f"{symbol} close & SMAs", "Drawdown (%)"),
     )
     fig.add_trace(go.Scatter(x=equity.index, y=equity, name=f"SMA {fast}/{slow} strategy",
                              line=dict(color=STRATEGY_COLOR, width=2)), row=1, col=1)
@@ -105,14 +121,14 @@ def build_chart(res: dict, fast: int, slow: int) -> go.Figure:
                              line=dict(color=FAST_COLOR, width=1.2)), row=2, col=1)
     fig.add_trace(go.Scatter(x=closes.index, y=closes.rolling(slow).mean(), name=f"SMA {slow}",
                              line=dict(color=SLOW_COLOR, width=1.2)), row=2, col=1)
-    for kind, symbol, color, label in (
+    for kind, symbol_marker, color, label in (
         (Signal.ENTER_LONG.value, "triangle-up", BUY_COLOR, "Buy"),
         (Signal.EXIT_LONG.value, "triangle-down", SELL_COLOR, "Sell"),
     ):
         ts = [t for t, s in res["signals"] if s == kind]
         if ts:
             fig.add_trace(go.Scatter(x=ts, y=[closes.asof(t) for t in ts], mode="markers", name=label,
-                                     marker=dict(symbol=symbol, size=12, color=color)), row=2, col=1)
+                                     marker=dict(symbol=symbol_marker, size=11, color=color)), row=2, col=1)
 
     dd = (equity / equity.cummax() - 1) * 100
     dd_bnh = (bnh / bnh.cummax() - 1) * 100
@@ -121,125 +137,211 @@ def build_chart(res: dict, fast: int, slow: int) -> go.Figure:
     fig.add_trace(go.Scatter(x=dd_bnh.index, y=dd_bnh, name="Buy & hold DD",
                              line=dict(color=BNH_COLOR, width=1, dash="dash"), showlegend=False), row=3, col=1)
 
+    if log_scale:
+        fig.update_yaxes(type="log", row=1, col=1)
+        fig.update_yaxes(type="log", row=2, col=1)
     fig.update_layout(height=780, hovermode="x unified", margin=dict(l=10, r=10, t=40, b=10),
                       legend=dict(orientation="h", yanchor="bottom", y=1.03, x=0))
     return fig
 
 
-# ------------------------------------------------------------------------------- UI
-st.title("📈 BTC SMA crossover backtest")
+# ------------------------------------------------------------------------- header
+st.title("📈 Crypto SMA crossover backtest")
 st.caption(
-    "Long-only fast/slow SMA crossover on Binance BTCUSDT daily bars, simulated with "
-    "NautilusTrader 2.0 (spot cash account, 0.1% taker fee per side). Historical "
-    "simulation only. No exchange connection and no orders are placed.",
+    "Long-only fast/slow SMA crossover on Binance spot daily bars, simulated with "
+    "NautilusTrader 2.0. Historical simulation only. No exchange connection and no orders are placed.",
 )
 
-try:
-    data = load_data()
-except (FileNotFoundError, ValueError) as exc:
-    st.error(f"Couldn't load data from `{RAW_DIR}`: {exc}")
-    st.code("python scripts/download_data.py", language="bash")
+symbols = available_symbols()
+if not symbols:
+    st.error(f"No kline data in `{RAW_DIR}`.")
+    st.code("python scripts/download_data.py --symbols BTCUSDT ETHUSDT SOLUSDT --start-year 2018 --end-year 2025",
+            language="bash")
     st.stop()
 
-first_day, last_day = data.index[0].date(), data.index[-1].date()
-
+# ----------------------------------------------------------------------- sidebar
 with st.sidebar:
     st.header("Parameters")
+    symbol = st.selectbox("Symbol", symbols, index=0)
+    data = load_data(symbol)
+    first_day, last_day = data.index[0].date(), data.index[-1].date()
+    default_start = max(first_day, date(last_day.year, 1, 1))
     with st.form("params"):
-        period = st.date_input("Date range", value=(first_day, last_day),
+        period = st.date_input("Date range", value=(default_start, last_day),
                                min_value=first_day, max_value=last_day)
         c1, c2 = st.columns(2)
         fast = c1.number_input("Fast SMA", min_value=2, max_value=200, value=10, step=1)
         slow = c2.number_input("Slow SMA", min_value=3, max_value=300, value=50, step=1)
-        trade_size = st.number_input("Trade size (BTC)", min_value=0.01, max_value=5.0,
-                                     value=0.5, step=0.05, format="%.2f")
+        sizing = st.radio("Position sizing", ["% of cash", "Fixed quantity"], horizontal=True)
+        if sizing == "% of cash":
+            fraction_pct = st.slider("Cash per entry (%)", 10, 100, 99)
+            trade_size, position_fraction = 1.0, fraction_pct / 100
+        else:
+            trade_size = st.number_input(f"Quantity ({symbol[:-4]})", min_value=0.001, value=0.5,
+                                         step=0.1, format="%.3f")
+            position_fraction = None
         capital = st.number_input("Starting capital (USDT)", min_value=1_000, max_value=10_000_000,
                                   value=100_000, step=10_000)
+        slippage_bps = st.slider("Slippage per side (bps)", 0, 50, 0,
+                                 help=f"Added to the {float(TAKER_FEE) * 100:.1f}% taker fee")
+        delay = st.slider("Execution delay (bars)", 0, 5, 0,
+                          help="Act on each signal this many bars late")
+        log_scale = st.checkbox("Log-scale price and equity", value=False)
         st.form_submit_button("Run backtest", type="primary", use_container_width=True)
     st.caption(f"Data: {first_day} → {last_day} ({len(data)} daily bars) from data.binance.vision")
 
-if not isinstance(period, (tuple, list)) or len(period) != 2:
-    st.info("Pick both a start and an end date.")
-    st.stop()
-start, end = period
-n_bars = len(data.loc[pd.Timestamp(start, tz="UTC") : pd.Timestamp(end, tz="UTC")])
-if fast >= slow:
-    st.error("Fast SMA must be shorter than slow SMA.")
-    st.stop()
-if n_bars <= slow:
-    st.error(f"The selected range has {n_bars} bars; it needs more than {slow} to warm up the slow SMA.")
-    st.stop()
+tab_bt, tab_research = st.tabs(["Backtest", "Stage 1 research"])
 
-with st.spinner("Running NautilusTrader backtest…"):
-    res = backtest(start, end, int(fast), int(slow), float(trade_size), float(capital))
+# --------------------------------------------------------------------- backtest tab
+def render_backtest() -> None:
+    """Backtest tab. Returns early (instead of st.stop) so the research tab still renders."""
+    if not isinstance(period, (tuple, list)) or len(period) != 2:
+        st.info("Pick both a start and an end date.")
+        return
+    start, end = period
+    n_bars = len(data.loc[pd.Timestamp(start, tz="UTC") : pd.Timestamp(end, tz="UTC")])
+    if fast >= slow:
+        st.error("Fast SMA must be shorter than slow SMA.")
+        return
+    if n_bars <= slow:
+        st.error(f"The selected range has {n_bars} bars; it needs more than {slow} to warm up the slow SMA.")
+        return
 
-s, b = res["strategy"], res["bnh_stats"]
-max_notional = float(trade_size) * float(res["closes"].max())
-if max_notional > capital:
-    st.warning(
-        f"{trade_size} BTC can cost up to {max_notional:,.0f} USDT in this period, more than the "
-        f"starting capital. Entries the account can't afford are denied by Nautilus's risk engine "
-        f"(the signal is skipped).",
-    )
+    cost_rate = float(TAKER_FEE) + slippage_bps / 10_000
+    with st.spinner("Running NautilusTrader backtest…"):
+        res = backtest(symbol, start, end, int(fast), int(slow), float(trade_size), position_fraction,
+                       float(capital), cost_rate, int(delay))
 
-cols = st.columns(5)
-cols[0].metric("Total return", pct(s["total_return"]),
-               delta=f"{(s['total_return'] - b['total_return']) * 100:+.2f} pp vs B&H")
-cols[1].metric("Max drawdown", pct(s["max_drawdown"]),
-               delta=f"{(s['max_drawdown'] - b['max_drawdown']) * 100:+.2f} pp vs B&H")
-cols[2].metric("Sharpe (ann.)", num(s["sharpe_ratio"]),
-               delta=None if math.isnan(s["sharpe_ratio"]) or math.isnan(b["sharpe_ratio"])
-               else f"{s['sharpe_ratio'] - b['sharpe_ratio']:+.2f} vs B&H")
-cols[3].metric("Trades", f"{s['num_trades']}")
-cols[4].metric("Win rate", pct(s["win_rate"], signed=False))
+    s, b = res["strategy"], res["bnh_stats"]
+    if position_fraction is None:
+        max_notional = float(trade_size) * float(res["closes"].max())
+        if max_notional > capital:
+            st.warning(
+                f"{trade_size} {symbol[:-4]} can cost up to {max_notional:,.0f} USDT in this period, more than "
+                f"the starting capital. Entries the account can't afford are denied by Nautilus's risk engine "
+                f"(the signal is skipped).",
+            )
 
-st.plotly_chart(build_chart(res, int(fast), int(slow)), use_container_width=True)
+    cols = st.columns(5)
+    cols[0].metric("Total return", pct(s["total_return"]),
+                   delta=f"{(s['total_return'] - b['total_return']) * 100:+.1f} pp vs B&H")
+    cols[1].metric("Max drawdown", pct(s["max_drawdown"]),
+                   delta=f"{(s['max_drawdown'] - b['max_drawdown']) * 100:+.1f} pp vs B&H")
+    cols[2].metric("Sharpe (ann.)", num(s["sharpe_ratio"]),
+                   delta=None if math.isnan(s["sharpe_ratio"]) or math.isnan(b["sharpe_ratio"])
+                   else f"{s['sharpe_ratio'] - b['sharpe_ratio']:+.2f} vs B&H")
+    cols[3].metric("Trades", f"{s['num_trades']}")
+    cols[4].metric("Win rate", pct(s["win_rate"], signed=False))
 
-left, right = st.columns([3, 2])
-with left:
-    st.subheader("Trades")
-    if res["trades"].empty:
-        st.info("No completed trades in this window.")
-    else:
+    st.plotly_chart(build_chart(res, symbol, int(fast), int(slow), log_scale), use_container_width=True)
+
+    left, right = st.columns([3, 2])
+    with left:
+        st.subheader("Trades")
+        if res["trades"].empty:
+            st.info("No completed trades in this window.")
+        else:
+            st.dataframe(
+                res["trades"], hide_index=True, use_container_width=True,
+                column_config={
+                    "opened": "Opened (UTC)",
+                    "closed": "Closed (UTC)",
+                    "entry_px": st.column_config.NumberColumn("Entry", format="%.4f"),
+                    "exit_px": st.column_config.NumberColumn("Exit", format="%.4f"),
+                    "quantity": st.column_config.NumberColumn("Qty", format="%.4f"),
+                    "net_pnl_usdt": st.column_config.NumberColumn("Net PnL (USDT)", format="%.2f"),
+                    "return": st.column_config.NumberColumn("Return", format="percent"),
+                },
+            )
+            st.download_button("Download trades.csv", res["trades"].to_csv(index=False),
+                               file_name=f"{symbol}_trades.csv", mime="text/csv")
+    with right:
+        st.subheader("Strategy vs buy & hold")
         st.dataframe(
-            res["trades"], hide_index=True, use_container_width=True,
-            column_config={
-                "opened": "Opened (UTC)",
-                "closed": "Closed (UTC)",
-                "entry_px": st.column_config.NumberColumn("Entry", format="%.2f"),
-                "exit_px": st.column_config.NumberColumn("Exit", format="%.2f"),
-                "quantity": st.column_config.NumberColumn("Qty (BTC)", format="%.4f"),
-                "net_pnl_usdt": st.column_config.NumberColumn("Net PnL (USDT)", format="%.2f"),
-                "return": st.column_config.NumberColumn("Return", format="percent"),
-            },
+            pd.DataFrame(
+                {
+                    "Strategy": [pct(s["total_return"]), f"{s['final_equity']:,.2f}", str(s["num_trades"]),
+                                 pct(s["win_rate"], False), pct(s["max_drawdown"]), num(s["sharpe_ratio"])],
+                    "Buy & hold": [pct(b["total_return"]), f"{b['final_equity']:,.2f}", str(b["num_trades"]),
+                                   pct(b["win_rate"], False), pct(b["max_drawdown"]), num(b["sharpe_ratio"])],
+                },
+                index=["Total return", "Final equity (USDT)", "Trades", "Win rate", "Max drawdown", "Sharpe"],
+            ),
+            use_container_width=True,
         )
-        st.download_button("Download trades.csv", res["trades"].to_csv(index=False),
-                           file_name="trades.csv", mime="text/csv")
-with right:
-    st.subheader("Strategy vs buy & hold")
-    st.dataframe(
-        pd.DataFrame(
-            {
-                "Strategy": [pct(s["total_return"]), f"{s['final_equity']:,.2f}", str(s["num_trades"]),
-                             pct(s["win_rate"], False), pct(s["max_drawdown"]), num(s["sharpe_ratio"])],
-                "Buy & hold": [pct(b["total_return"]), f"{b['final_equity']:,.2f}", str(b["num_trades"]),
-                               pct(b["win_rate"], False), pct(b["max_drawdown"]), num(b["sharpe_ratio"])],
-            },
-            index=["Total return", "Final equity (USDT)", "Trades", "Win rate", "Max drawdown", "Sharpe"],
-        ),
-        use_container_width=True,
-    )
 
-with st.expander("How this is simulated, and why it isn't proof"):
-    st.markdown(
-        f"""
-- **Fills:** market orders fill at the close of the signal bar as a taker, with a
-  {float(TAKER_FEE) * 100:.1f}% fee per side. No slippage is modelled.
+    with st.expander("How this is simulated, and why it isn't proof"):
+        st.markdown(
+            f"""
+- **Costs:** market orders fill at the close of the signal bar (plus any delay) as a taker,
+  at {cost_rate * 100:.3f}% per side (fee + slippage).
 - **No look-ahead:** each daily bar is stamped at its close, so a signal only uses closed days.
-- **Exposure:** the strategy trades a fixed BTC quantity. Buy & hold invests all capital,
-  so the drawdown comparison partly reflects position size, not timing.
+- **Sizing:** "% of cash" invests that share of free USDT on each entry. "Fixed quantity" buys
+  the same coin amount every time, so exposure differs from buy & hold.
 - **Warmup:** no trades until the slow SMA has {int(slow)} bars.
-- **Small sample:** {s['num_trades']} trades over {res['bars']} days says little about the
-  future. Tuning parameters on this screen until the numbers look good is overfitting.
+- **Overfitting:** tuning parameters on this screen until the numbers look good is exactly
+  what the walk-forward test in the Research tab guards against.
 """,
-    )
+        )
+
+
+with tab_bt:
+    render_backtest()
+
+# --------------------------------------------------------------------- research tab
+with tab_research:
+    results_path = RESEARCH_DIR / "results.json"
+    if not results_path.exists():
+        st.info("No research results yet. Generate them with:")
+        st.code("python scripts/run_research.py", language="bash")
+    else:
+        results = {r["symbol"]: r for r in json.loads(results_path.read_text(encoding="utf-8"))}
+        st.markdown(
+            "Each question below tests whether the SMA rule's edge is real or just a lucky backtest. "
+            "Costs are 0.10% fee + 0.05% slippage per side, with 99% of cash per entry.",
+        )
+        rsym = st.radio("Symbol", list(results), horizontal=True, key="research_symbol")
+        r = results[rsym]
+        wf = r["walk_forward"]
+
+        st.subheader("1. Does optimising parameters help out of sample?")
+        st.caption(
+            f"Walk-forward: choose the best SMA pair on 2 years, trade it for the next 6 months, roll forward "
+            f"({wf['folds']} folds, {wf['oos_start']} → {wf['oos_end']}).",
+        )
+        c = st.columns(3)
+        for col, (label, key) in zip(c, (("Walk-forward optimised", "walk_forward"),
+                                          ("Fixed SMA 10/50", "baseline"),
+                                          ("Buy & hold", "buy_and_hold"))):
+            col.metric(label, pct(wf[key]["total_return"]),
+                       delta=f"Sharpe {num(wf[key]['sharpe_ratio'])}, max DD {pct(wf[key]['max_drawdown'])}",
+                       delta_color="off")
+        st.image(str(RESEARCH_DIR / f"{rsym}_walk_forward.png"), use_container_width=True)
+        st.caption("Parameters chosen per fold: " + ", ".join(wf["chosen_pairs"]))
+
+        left, right = st.columns(2)
+        with left:
+            st.subheader("2. Is it one lucky parameter pair?")
+            sens = r["sensitivity"]
+            st.caption(
+                f"{sens['pairs']} pairs: Sharpe {num(sens['sharpe_min'])} to {num(sens['sharpe_max'])} "
+                f"(median {num(sens['sharpe_median'])}); {sens['share_positive_return']:.0%} profitable.",
+            )
+            st.image(str(RESEARCH_DIR / f"{rsym}_sensitivity.png"), use_container_width=True)
+        with right:
+            st.subheader("3. Is the timing better than luck?")
+            rb = r["random_baseline"]
+            st.caption(
+                f"10/50 beats {rb['return_percentile']:.0%} of {rb['samples']} random schedules with the same "
+                f"trade count and holding lengths.",
+            )
+            st.image(str(RESEARCH_DIR / f"{rsym}_random_baseline.png"), use_container_width=True)
+
+        st.subheader("4. Does it survive higher costs and late fills?")
+        rob = pd.DataFrame(r["robustness"])
+        piv = rob.pivot(index="cost_per_side", columns="delay_bars", values="sharpe_ratio")
+        piv.index = [f"{c * 100:.2f}% / side" for c in piv.index]
+        piv.columns = [f"delay {d} bar{'s' if d != 1 else ''}" for d in piv.columns]
+        st.dataframe(piv.style.format("{:.2f}").background_gradient(cmap="RdYlGn", vmin=0, vmax=1.5),
+                     use_container_width=True)
+        st.caption("Sharpe ratio of SMA 10/50 over the full period.")

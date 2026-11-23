@@ -34,9 +34,19 @@ def test_pipeline_aligns_curves_and_reconciles() -> None:
 def test_streamlit_app_renders_default_backtest() -> None:
     from streamlit.testing.v1 import AppTest
 
-    at = AppTest.from_file(str(APP), default_timeout=120).run()
+    from src.data_loader import load_klines_csv
+
+    at = AppTest.from_file(str(APP), default_timeout=180).run()
     assert not at.exception, at.exception
     assert not at.error, [e.value for e in at.error]
+
+    # Defaults: BTCUSDT, latest calendar year in the data, 10/50, 99% of cash, fee only.
+    df = load_klines_csv(ROOT / "data" / "raw", symbol="BTCUSDT")
+    year = df.index[-1].year
+    window = df.loc[f"{year}-01-01":]
+    expected = run_pipeline(window, 10, 50, 1.0, 100_000, symbol="BTCUSDT", position_fraction=0.99)
+
     labels = {m.label: m.value for m in at.metric}
-    assert labels["Trades"] == "4"
-    assert labels["Total return"] == "+1.04%"
+    assert labels["Trades"] == str(expected.strategy_stats.num_trades)
+    assert labels["Total return"] == f"{expected.strategy_stats.total_return * 100:+.2f}%"
+    assert len(at.tabs) == 2
