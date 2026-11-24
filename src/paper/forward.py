@@ -66,6 +66,12 @@ class ForwardState:
         starts = dict(self.starts) | {s: start_session[s] for s in new}
         return replace(self, symbols=tuple(self.symbols) + tuple(new), starts=starts)
 
+    def without_symbols(self, removed) -> ForwardState:
+        """A copy that no longer tracks ``removed`` (e.g. symbols deleted from the symbol list)."""
+        removed = set(removed)
+        keep = tuple(s for s in self.symbols if s not in removed)
+        return replace(self, symbols=keep, starts={k: v for k, v in self.starts.items() if k not in removed})
+
     def save(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         data = asdict(self) | {"symbols": list(self.symbols)}

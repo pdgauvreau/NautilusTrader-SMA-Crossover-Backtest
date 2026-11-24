@@ -35,6 +35,7 @@ if hasattr(sys.stdout, "reconfigure"):
 
 from src.data_loader import DEFAULT_COST_RATE  # noqa: E402
 from src.data_loader import DEFAULT_SYMBOLS  # noqa: E402
+from src.data_loader import is_stale  # noqa: E402
 from src.data_loader import load_bars  # noqa: E402
 from src.data_loader import validate_daily  # noqa: E402
 from src.paper.forward import ForwardState  # noqa: E402
@@ -128,27 +129,40 @@ def main(argv: list[str] | None = None) -> int:
         df = load_bars(args.raw_dir, s)
         validate_daily(df)
         frames[s] = df
-    latest = min(df.index[-1] for df in frames.values()).strftime("%Y-%m-%d")
+    reference_last = max(df.index[-1] for df in frames.values())
+    latest = reference_last.strftime("%Y-%m-%d")
+    # A symbol whose data stops days before everyone else's has stopped trading
+    # (halted, delisted, no volume): it cannot be traded, so it is skipped.
+    stale = {s: df.index[-1].strftime("%Y-%m-%d") for s, df in frames.items() if is_stale(df, reference_last)}
+    for s, last in stale.items():
+        print(f"{s}: no trades since {last}; skipping (halted, delisted or illiquid)")
+    active = [s for s in args.symbols if s not in stale]
 
     if args.reset or not state_path.exists():
-        state = ForwardState.new(latest, args.symbols, fast=args.fast, slow=args.slow,
+        state = ForwardState.new(latest, active, fast=args.fast, slow=args.slow,
                                  capital_per_symbol=args.capital, cost_rate=args.cost)
         state.save(state_path)
         print(f"Started a new forward test from the {latest} close ({state_path}).")
     else:
         state = ForwardState.load(state_path)
-        added = [s for s in args.symbols if s not in state.symbols]
+        removed = [s for s in state.symbols if s not in args.symbols]
+        if removed:
+            state = state.without_symbols(removed)
+            state.save(state_path)
+            print(f"Removed {', '.join(removed)} from the forward test (no longer in the symbol list).")
+        added = [s for s in active if s not in state.symbols]
         if added:
             last = {s: frames[s].index[-1].strftime("%Y-%m-%d") for s in added}
-            state = state.with_symbols(args.symbols, last)
+            state = state.with_symbols(active, last)
             state.save(state_path)
             print(f"Added {', '.join(added)} to the forward test, starting at their latest close.")
+    symbols = [s for s in state.symbols if s not in stale]
 
-    rows = [forward_status(frames[s], s, state) for s in state.symbols]
+    rows = [forward_status(frames[s], s, state) for s in symbols]
     total = sum(r.equity for r in rows)
     capital = state.capital_per_symbol * len(rows)
 
-    rule_rows = [r for s in state.symbols for r in forward_rules(frames[s], s, state)]
+    rule_rows = [r for s in symbols for r in forward_rules(frames[s], s, state)]
     board = rule_leaderboard(rule_rows, state.capital_per_symbol)
     (args.paper_dir / "forward_rules.json").write_text(json.dumps({
         "updated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -177,13 +191,15 @@ def main(argv: list[str] | None = None) -> int:
         "",
         "## Rule leaderboard (all symbols)",
         "",
+        *([f"Skipped (no recent trades): {', '.join(f'{k} (last {v})' for k, v in stale.items())}.", ""]
+          if stale else []),
         leaderboard_table(board),
         "",
         "## What each rule does at the next open",
         "",
         "**BUY**/**SELL** = order at the next open; long/cash = current simulated position.",
         "",
-        action_matrix(rule_rows, state.symbols),
+        action_matrix(rule_rows, symbols),
         "",
         f"## SMA {state.fast}/{state.slow} detail",
         "",

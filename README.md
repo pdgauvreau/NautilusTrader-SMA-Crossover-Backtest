@@ -144,6 +144,9 @@ Other details:
 
 - **Trading halts:** if a symbol was halted for a long stretch (e.g. a stock
   suspended for two years), only data after the last gap is kept.
+- **No-trade days:** days with zero volume are dropped, because the "price" is just
+  the last trade repeated. A stock that has stopped trading (halted, delisted, or
+  illiquid) is skipped by the forward test, with a note in the report.
 - **Short histories:** symbols with too little history for the walk-forward
   research (about 760 sessions) are listed as skipped instead of failing.
 

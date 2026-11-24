@@ -61,10 +61,10 @@ def test_validate_rejects_missing_weeks_and_weekend_rows(tmp_path: Path) -> None
     days = list(pd.bdate_range("2024-01-02", periods=10).strftime("%Y-%m-%d"))
     _write_csv(tmp_path / "SPY_1d.csv", days[:3] + days[8:], np.linspace(400, 410, 5))  # a 7-day hole
     with pytest.raises(ValueError, match="Gaps"):
-        validate_daily(load_bars(tmp_path, "SPY"))
+        validate_daily(load_bars(tmp_path, "SPY", drop_no_trade=False))
     _write_csv(tmp_path / "QQQ_1d.csv", ["2024-01-05", "2024-01-06"], [400.0, 401.0])  # Saturday
     with pytest.raises(ValueError, match="Weekend"):
-        validate_daily(load_bars(tmp_path, "QQQ"))
+        validate_daily(load_bars(tmp_path, "QQQ", drop_no_trade=False))
 
 
 def test_missing_file_and_unknown_symbol(tmp_path: Path) -> None:
@@ -261,3 +261,35 @@ def test_forward_rules_first_day_queues_entries_for_rules_already_long() -> None
     rows = {r.rule: r for r in forward_rules(df, "SPY", state)}
     for key in ("buy_and_hold", "sma_10_50", "golden_cross", "momentum_12_1"):
         assert rows[key].target_long and rows[key].next_open_action == "BUY" and rows[key].shares == 0
+
+
+# ------------------------------------------------------- no-trade days and stale data
+def test_zero_volume_days_are_dropped_and_long_gaps_trimmed(tmp_path: Path) -> None:
+    days = pd.bdate_range("2024-01-02", periods=40)
+    vol = np.full(40, 1e6)
+    vol[5] = 0  # one isolated no-trade day: just removed
+    vol[15:25] = 0  # two no-trade weeks (e.g. delisted to OTC): data before them is dropped
+    pd.DataFrame({"date": days.strftime("%Y-%m-%d"), "open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0,
+                  "volume": vol, "vwap": 100.0, "trade_count": 1}).to_csv(tmp_path / "SPY_1d.csv", index=False)
+    df = load_bars(tmp_path, "SPY")
+    assert (df["volume"] > 0).all()
+    assert df.index[0].date() == days[25].date() and len(df) == 15
+    validate_daily(df)
+    assert len(load_bars(tmp_path, "SPY", drop_no_trade=False)) == 40
+
+
+def test_stale_symbol_detection() -> None:
+    from src.data_loader import is_stale
+
+    idx = pd.bdate_range("2026-11-02", "2026-11-16").tz_localize("UTC")
+    df = pd.DataFrame({"close": 1.0}, index=idx)
+    ref = pd.Timestamp("2026-11-23", tz="UTC")  # five sessions later
+    assert is_stale(df, ref)
+    assert not is_stale(df, pd.Timestamp("2026-11-18", tz="UTC"))  # two sessions behind is fine
+    assert is_stale(df.iloc[:0], ref)
+
+
+def test_forward_state_can_drop_symbols() -> None:
+    s = ForwardState.new("2026-11-20", ["SPY", "QQQ"]).with_symbols(["SPY", "QQQ", "XYZ"], {"XYZ": "2026-11-21"})
+    t = s.without_symbols(["XYZ"])
+    assert t.symbols == ("SPY", "QQQ") and "XYZ" not in t.starts

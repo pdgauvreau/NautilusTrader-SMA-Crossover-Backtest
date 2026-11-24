@@ -115,8 +115,11 @@ def load_bars(
     symbol: str = DEFAULT_SYMBOL,
     start: str | pd.Timestamp | None = None,
     end: str | pd.Timestamp | None = None,
+    drop_no_trade: bool = True,
 ) -> pd.DataFrame:
     """Load ``<raw_dir>/<SYMBOL>_1d.csv`` written by ``scripts/download_data.py``.
+
+    By default sessions with zero volume are removed (see :func:`drop_no_trade_days`).
 
     Returns a DataFrame indexed by session date (UTC midnight), with float
     ``open, high, low, close, volume`` columns, sorted and de-duplicated.
@@ -138,11 +141,43 @@ def load_bars(
         df[col] = pd.to_numeric(df[col]).astype("float64")
     df = df.drop_duplicates("date", keep="last").sort_values("date").set_index("date")
     df.index.name = "session"
+    if drop_no_trade:
+        df = drop_no_trade_days(df)
     if start is not None:
         df = df[df.index >= _as_utc(start)]
     if end is not None:
         df = df[df.index <= _as_utc(end)]
     return df
+
+
+MAX_GAP_DAYS = 5  # longer than any weekend + holiday
+
+
+def drop_no_trade_days(df: pd.DataFrame, max_gap_days: int = MAX_GAP_DAYS) -> pd.DataFrame:
+    """Remove sessions with zero volume, then keep only data after the last long gap.
+
+    When nothing trades, Alpaca repeats the last price: that is not a price
+    anyone could have traded at (e.g. a stock delisted to OTC for a year, a
+    SPAC shell before its merger, a halted stock). If removing those days
+    leaves a gap longer than ``max_gap_days``, earlier data is dropped too, as
+    for a trading suspension.
+    """
+    df = df[df["volume"] > 0]
+    if len(df) < 2:
+        return df
+    gaps = df.index.to_series().diff().dt.days
+    big = gaps[gaps > max_gap_days]
+    if not big.empty:
+        df = df[df.index >= big.index[-1]]
+    return df
+
+
+def is_stale(df: pd.DataFrame, reference_last: pd.Timestamp, max_sessions_behind: int = 3) -> bool:
+    """True if ``df`` stops trading days before ``reference_last`` (e.g. a halted or delisted stock)."""
+    if df.empty:
+        return True
+    behind = pd.bdate_range(df.index[-1], reference_last).size - 1
+    return behind > max_sessions_behind
 
 
 def _as_utc(ts: str | pd.Timestamp) -> pd.Timestamp:
